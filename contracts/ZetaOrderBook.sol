@@ -120,6 +120,9 @@ contract ZetaOrderBook is UniversalContract {
         zetaPriceId = _zetaPriceId;
         callbackChain = _callbackChain;
         callbackAddress = _callbackAddress;
+
+        // Approve USDC for the router
+        IZRC20(usdcToken).approve(address(swapRouter), type(uint256).max);
     }
 
     // Get latest ZETA price from Pyth
@@ -337,9 +340,6 @@ contract ZetaOrderBook is UniversalContract {
             
             // Calculate minimum ZETA output based on slippage
             uint256 minZetaOutput = (order.amount * (10000 - order.slippage)) / 10000;
-
-            // Approve router
-            IZRC20(usdcToken).approve(address(swapRouter), usdcAmount);
 
             // Path for swap
             address[] memory path = new address[](2);

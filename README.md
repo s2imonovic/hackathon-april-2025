@@ -82,6 +82,24 @@ Cross-chain communication is facilitated through ZetaChain's messaging system.
 - Order cancellation functionality
 - Integration with ZetaSwap for token swaps
 
+## Slippage Configuration
+
+When creating orders, you can specify your desired slippage tolerance in basis points (bps). The maximum allowed slippage is 10% (1000 bps).
+
+Common slippage values:
+- 1% = 100 bps
+- 0.5% = 50 bps
+- 0.1% = 10 bps
+
+Example usage:
+```solidity
+// Create a sell order with 1% slippage
+createSellOrder(targetPrice, 100);
+
+// Create a buy order with 0.5% slippage
+createBuyOrder(zetaAmount, targetPrice, 50);
+```
+
 ## License
 
 UNLICENSED

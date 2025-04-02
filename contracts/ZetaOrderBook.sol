@@ -59,6 +59,7 @@ contract ZetaOrderBook is UniversalContract {
         address owner;
         uint256 amount;   // Amount of ZETA for sell orders or USDC for buy orders
         uint256 price;    // Target price in USDC with 6 decimals
+        uint256 slippage; // Slippage tolerance in basis points (1% = 100)
         OrderType orderType;
         bool active;
     }
@@ -92,6 +93,7 @@ contract ZetaOrderBook is UniversalContract {
     error PriceCheckFailed();
     error OrderNotActive();
     error InsufficientFunds();
+    error SlippageExceeded(uint256 expectedAmount, uint256 receivedAmount, uint256 slippageBps);
 
     modifier onlyGateway() {
         if (msg.sender != address(gateway)) revert Unauthorized();
@@ -180,9 +182,10 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Create a sell order for ZETA (native token)
-    function createSellOrder(uint256 targetPrice) external {
+    function createSellOrder(uint256 targetPrice, uint256 slippageBps) external {
         uint256 zetaAmount = userZetaBalance[msg.sender];
         if (zetaAmount == 0) revert InsufficientFunds();
+        if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
 
         // Deduct ZETA from user's balance
         userZetaBalance[msg.sender] -= zetaAmount;
@@ -195,6 +198,7 @@ contract ZetaOrderBook is UniversalContract {
             owner: msg.sender,
             amount: zetaAmount,
             price: targetPrice,
+            slippage: slippageBps,
             orderType: OrderType.SELL,
             active: true
         });
@@ -206,12 +210,13 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Create a buy order with USDC
-    function createBuyOrder(uint256 zetaAmount, uint256 targetPrice) external {
+    function createBuyOrder(uint256 zetaAmount, uint256 targetPrice, uint256 slippageBps) external {
         // Calculate the required USDC amount
-        uint256 usdcAmount = (zetaAmount * targetPrice) / 1e6; // Assuming USDC has 6 decimals
+        uint256 usdcAmount = (zetaAmount * targetPrice) / 1e6;
 
         // Check if user has enough USDC balance
         if (userUsdcBalance[msg.sender] < usdcAmount) revert InsufficientFunds();
+        if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
 
         // Deduct USDC from user's balance
         userUsdcBalance[msg.sender] -= usdcAmount;
@@ -222,8 +227,9 @@ contract ZetaOrderBook is UniversalContract {
         orders[orderId] = Order({
             id: orderId,
             owner: msg.sender,
-            amount: zetaAmount, // Amount of ZETA to buy
-            price: targetPrice,  // Price willing to pay per ZETA
+            amount: zetaAmount,
+            price: targetPrice,
+            slippage: slippageBps,
             orderType: OrderType.BUY,
             active: true
         });
@@ -295,7 +301,8 @@ contract ZetaOrderBook is UniversalContract {
 
         if (order.orderType == OrderType.SELL) {
             // SELL Order: Swap native ZETA for USDC
-            // First wrap ZETA to WZETA, then swap WZETA for USDC
+            // Calculate minimum USDC output based on order price and slippage
+            uint256 minUsdcOutput = (order.amount * order.price * (10000 - order.slippage)) / (1e6 * 10000);
 
             // Path for swap
             address[] memory path = new address[](2);
@@ -303,11 +310,15 @@ contract ZetaOrderBook is UniversalContract {
             path[1] = usdcToken;
 
             try swapRouter.swapExactETHForTokens{value: order.amount}(
-                0, // Min output
+                minUsdcOutput,
                 path,
-                address(this), // Send to contract first
+                address(this),
                 block.timestamp + 15 minutes
             ) returns (uint256[] memory amounts) {
+                // Check if received amount meets minimum requirements
+                if (amounts[1] < minUsdcOutput) {
+                    revert SlippageExceeded(minUsdcOutput, amounts[1], order.slippage);
+                }
                 // Add USDC to user's balance and contract's balance
                 userUsdcBalance[order.owner] += amounts[1];
                 contractUsdcBalance += amounts[1];
@@ -317,10 +328,11 @@ contract ZetaOrderBook is UniversalContract {
             }
         } else {
             // BUY Order: Swap USDC for native ZETA
-            // First swap USDC for WZETA, then unwrap WZETA to ZETA
-
             // Calculate USDC amount to use
             uint256 usdcAmount = (order.amount * order.price) / 1e6;
+            
+            // Calculate minimum ZETA output based on slippage
+            uint256 minZetaOutput = (order.amount * (10000 - order.slippage)) / 10000;
 
             // Approve router
             IZRC20(usdcToken).approve(address(swapRouter), usdcAmount);
@@ -332,11 +344,15 @@ contract ZetaOrderBook is UniversalContract {
 
             try swapRouter.swapExactTokensForETH(
                 usdcAmount,
-                0, // Min output
+                minZetaOutput,
                 path,
-                address(this), // Send to contract first
+                address(this),
                 block.timestamp + 15 minutes
             ) returns (uint256[] memory amounts) {
+                // Check if received amount meets minimum requirements
+                if (amounts[1] < minZetaOutput) {
+                    revert SlippageExceeded(minZetaOutput, amounts[1], order.slippage);
+                }
                 // Add ZETA to user's balance and contract's balance
                 userZetaBalance[order.owner] += amounts[1];
                 contractZetaBalance += amounts[1];

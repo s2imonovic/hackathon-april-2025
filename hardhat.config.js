@@ -2,6 +2,7 @@ require("@nomicfoundation/hardhat-toolbox");
 require('@nomicfoundation/hardhat-ethers');
 require("@nomicfoundation/hardhat-web3-v4");
 require('@openzeppelin/hardhat-upgrades')
+require('@nomicfoundation/hardhat-verify');
 require('dotenv').config();
 
 const PK = `0x${"32c069bf3d38a060eacdc072eecd4ef63f0fc48895afbacbe185c97037789875"}`
@@ -10,6 +11,12 @@ const PK = `0x${"32c069bf3d38a060eacdc072eecd4ef63f0fc48895afbacbe185c9703778987
 module.exports = {
   defaultNetwork: 'local',
   networks: {
+    base_sepolia: {
+      url: 'https://sepolia.base.org',
+      accounts: [process.env.PK || PK],
+      chainId: 84532,
+      gasPrice: 1000000000
+    },
     testnet: {
       url: 'https://zetachain-testnet.public.blastapi.io',
       accounts: [process.env.PK || PK],
@@ -41,7 +48,32 @@ module.exports = {
       optimizer: {
         enabled: true,
         runs: 200
-      }
+      },
+      evmVersion: "london"
     }
+  },
+  etherscan: {
+    apiKey: {
+      base_sepolia: process.env.BLOCKSCOUT_API_KEY || "",
+      testnet: process.env.BLOCKSCOUT_API_KEY || ""
+    },
+    customChains: [
+      {
+        network: "base_sepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://base-sepolia.blockscout.com/api",
+          browserURL: "https://base-sepolia.blockscout.com"
+        }
+      },
+      {
+        network: "testnet",
+        chainId: 7001,
+        urls: {
+          apiURL: "https://zetachain-testnet.blockscout.com/api",
+          browserURL: "https://zetachain-testnet.blockscout.com"
+        }
+      }
+    ]
   }
 }

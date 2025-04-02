@@ -170,7 +170,12 @@ contract ZetaOrderBook is UniversalContract {
         
         // Use a payable function to send ZETA
         (bool success, ) = payable(msg.sender).call{value: amount}("");
-        if (!success) revert TransferFailed();
+        if (!success) {
+            // Revert the balance changes if transfer fails
+            userZetaBalance[msg.sender] += amount;
+            contractZetaBalance += amount;
+            revert TransferFailed();
+        }
         emit ZetaWithdrawn(msg.sender, amount);
     }
 
@@ -332,8 +337,9 @@ contract ZetaOrderBook is UniversalContract {
                 address(this), // Send to contract first
                 block.timestamp + 15 minutes
             ) returns (uint256[] memory amounts) {
-                // Add ZETA to user's balance
+                // Add ZETA to user's balance and contract's balance
                 userZetaBalance[order.owner] += amounts[1];
+                contractZetaBalance += amounts[1];
                 emit SwapCompleted(usdcToken, address(0), usdcAmount, amounts[1]);
             } catch {
                 revert SwapFailed();

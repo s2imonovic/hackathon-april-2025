@@ -141,8 +141,8 @@ contract ZetaOrderBook is UniversalContract {
     // Deposit ZETA to the contract
     function depositZeta() external payable {
         if (msg.value == 0) revert InsufficientFunds();
-        userZetaBalance[msg.sender] += msg.value;
         contractZetaBalance += msg.value;
+        userZetaBalance[msg.sender] += msg.value;
         emit ZetaDeposited(msg.sender, msg.value);
     }
 
@@ -428,9 +428,11 @@ contract ZetaOrderBook is UniversalContract {
 
     // For receiving native ZETA
     receive() external payable {
-        // When receiving ZETA, add it to the contract's balance
+        // When receiving ZETA directly (not through depositZeta), add it to the contract's balance and sender's balance
         if (msg.value > 0) {
             contractZetaBalance += msg.value;
+            userZetaBalance[msg.sender] += msg.value;
+            emit ZetaDeposited(msg.sender, msg.value);
         }
     }
 

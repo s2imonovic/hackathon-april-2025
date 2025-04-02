@@ -111,7 +111,8 @@ contract ZetaOrderBook is UniversalContract {
 
     // Get latest ZETA price from Pyth
     function getZetaPrice() public view returns (uint256, uint256) {
-        PythStructs.Price memory price = pythOracle.getPriceUnsafe(zetaPriceId);
+        PythStructs.Price memory price = pythOracle.getPriceUnsafe(zetaPriceId); // TODO: Only keep this for the demo
+        // PythStructs.Price memory price = pythOracle.getPriceNoOlderThan(zetaPriceId, 120); // 2 minutes or less.
         return (uint256(uint64(price.price)), price.publishTime);
     }
 

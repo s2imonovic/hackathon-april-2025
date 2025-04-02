@@ -19,6 +19,13 @@ async function verifyWithRetries(address, constructorArguments, maxRetries = 3) 
     const network = hre.network.name;
     const contractUrl = getContractUrl(network, address);
 
+    // Skip verification if no API key is set
+    if (!process.env.BLOCKSCOUT_API_KEY) {
+        console.log("⚠️  No Blockscout API key found. Skipping verification.");
+        console.log(`View contract at: ${contractUrl}`);
+        return;
+    }
+
     for (let i = 0; i < maxRetries; i++) {
         try {
             console.log(`Verifying contract (attempt ${i + 1}/${maxRetries})...`);
@@ -44,30 +51,6 @@ async function verifyWithRetries(address, constructorArguments, maxRetries = 3) 
         }
     }
     throw new Error(`Failed to verify contract after ${maxRetries} attempts`);
-}
-
-// Helper function to set universal contract address
-async function setUniversalContract(callbackConnectorAddress, zetaOrderBookAddress) {
-    console.log("Setting universal contract address...");
-    
-    // Get the CallbackConnector contract instance
-    const CallbackConnector = await hre.ethers.getContractFactory("CallbackConnector");
-    const callbackConnector = CallbackConnector.attach(callbackConnectorAddress);
-
-    // Set the universal contract address
-    const tx = await callbackConnector.setUniversalContract(zetaOrderBookAddress);
-    console.log("Transaction sent:", tx.hash);
-
-    // Wait for transaction to be mined
-    await tx.wait();
-    console.log("Universal contract address set successfully");
-
-    // Verify the address was set correctly
-    const universalContract = await callbackConnector.universalContract();
-    if (universalContract.toLowerCase() !== zetaOrderBookAddress.toLowerCase()) {
-        throw new Error("Universal contract address was not set correctly");
-    }
-    console.log("Universal contract address verified");
 }
 
 async function main() {
@@ -167,14 +150,6 @@ async function main() {
             await verifyWithRetries(zetaOrderBook.target, constructorArgs);
         } catch (error) {
             console.error("Failed to verify ZetaOrderBook after all retries:", error);
-        }
-
-        // Set the universal contract address on Base Sepolia
-        try {
-            await setUniversalContract(callbackConnectorAddress, zetaOrderBook.target);
-        } catch (error) {
-            console.error("Failed to set universal contract address:", error);
-            throw error;
         }
     } else {
         throw new Error("Unsupported network");

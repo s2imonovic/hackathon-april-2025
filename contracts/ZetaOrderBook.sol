@@ -93,7 +93,6 @@ contract ZetaOrderBook is UniversalContract {
     error PriceCheckFailed();
     error OrderNotActive();
     error InsufficientFunds();
-    error SlippageExceeded(uint256 expectedAmount, uint256 receivedAmount, uint256 slippageBps);
 
     modifier onlyGateway() {
         if (msg.sender != address(gateway)) revert Unauthorized();
@@ -309,21 +308,26 @@ contract ZetaOrderBook is UniversalContract {
             path[0] = address(0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf); // WZETA
             path[1] = usdcToken;
 
+            // Ensure contract has enough native ZETA
+            if (address(this).balance < order.amount) {
+                order.active = true;
+                revert InsufficientFunds();
+            }
+
             try swapRouter.swapExactETHForTokens{value: order.amount}(
                 minUsdcOutput,
                 path,
                 address(this),
                 block.timestamp + 15 minutes
             ) returns (uint256[] memory amounts) {
-                // Check if received amount meets minimum requirements
-                if (amounts[1] < minUsdcOutput) {
-                    revert SlippageExceeded(minUsdcOutput, amounts[1], order.slippage);
-                }
                 // Add USDC to user's balance and contract's balance
                 userUsdcBalance[order.owner] += amounts[1];
                 contractUsdcBalance += amounts[1];
                 emit SwapCompleted(address(0), usdcToken, order.amount, amounts[1]);
             } catch {
+                // If swap fails, return ZETA to user's balance and restore order
+                userZetaBalance[order.owner] += order.amount;
+                order.active = true;
                 revert SwapFailed();
             }
         } else {
@@ -349,15 +353,14 @@ contract ZetaOrderBook is UniversalContract {
                 address(this),
                 block.timestamp + 15 minutes
             ) returns (uint256[] memory amounts) {
-                // Check if received amount meets minimum requirements
-                if (amounts[1] < minZetaOutput) {
-                    revert SlippageExceeded(minZetaOutput, amounts[1], order.slippage);
-                }
                 // Add ZETA to user's balance and contract's balance
                 userZetaBalance[order.owner] += amounts[1];
                 contractZetaBalance += amounts[1];
                 emit SwapCompleted(usdcToken, address(0), usdcAmount, amounts[1]);
             } catch {
+                // If swap fails, return USDC to user's balance and restore order
+                userUsdcBalance[order.owner] += usdcAmount;
+                order.active = true;
                 revert SwapFailed();
             }
         }

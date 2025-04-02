@@ -33,7 +33,6 @@ interface IZetaSwap {
         address to,
         uint256 deadline
     ) external returns (uint256[] memory amounts);
-
 }
 
 contract ZetaOrderBook is UniversalContract {
@@ -41,8 +40,8 @@ contract ZetaOrderBook is UniversalContract {
     IPyth public immutable pythOracle;
     IZetaSwap public swapRouter;
 
-    // USDT token address
-    address public usdtToken;
+    // USDC token address
+    address public usdcToken;
     // Pyth price feed IDs
     bytes32 public zetaPriceId;
     // External chain connector for the price check loop
@@ -54,8 +53,8 @@ contract ZetaOrderBook is UniversalContract {
     struct Order {
         uint256 id;
         address owner;
-        uint256 amount;   // Amount of ZETA for sell orders or USDT for buy orders
-        uint256 price;    // Target price in USDT with 6 decimals
+        uint256 amount;   // Amount of ZETA for sell orders or USDC for buy orders
+        uint256 price;    // Target price in USDC with 6 decimals
         OrderType orderType;
         bool active;
     }
@@ -96,7 +95,7 @@ contract ZetaOrderBook is UniversalContract {
         address payable gatewayAddress,
         address pythOracleAddress,
         address swapRouterAddress,
-        address _usdtToken,
+        address _usdcToken,
         bytes32 _zetaPriceId,
         address _callbackChain,
         bytes memory _callbackAddress
@@ -104,7 +103,7 @@ contract ZetaOrderBook is UniversalContract {
         gateway = GatewayZEVM(gatewayAddress);
         pythOracle = IPyth(pythOracleAddress);
         swapRouter = IZetaSwap(swapRouterAddress);
-        usdtToken = _usdtToken;
+        usdcToken = _usdcToken;
         zetaPriceId = _zetaPriceId;
         callbackChain = _callbackChain;
         callbackAddress = _callbackAddress;
@@ -138,13 +137,13 @@ contract ZetaOrderBook is UniversalContract {
         checkAndExecuteOrder(orderId);
     }
 
-    // Create a buy order with USDT
+    // Create a buy order with USDC
     function createBuyOrder(uint256 zetaAmount, uint256 targetPrice) external {
-        // Calculate the required USDT amount
-        uint256 usdtAmount = (zetaAmount * targetPrice) / 1e6; // Assuming USDT has 6 decimals
+        // Calculate the required USDC amount
+        uint256 usdcAmount = (zetaAmount * targetPrice) / 1e6; // Assuming USDC has 6 decimals
 
-        // Transfer USDT from user to this contract
-        if (!IZRC20(usdtToken).transferFrom(msg.sender, address(this), usdtAmount)) {
+        // Transfer USDC from user to this contract
+        if (!IZRC20(usdcToken).transferFrom(msg.sender, address(this), usdcAmount)) {
             revert TransferFailed();
         }
 
@@ -182,9 +181,9 @@ contract ZetaOrderBook is UniversalContract {
             (bool success, ) = order.owner.call{value: order.amount}("");
             if (!success) revert TransferFailed();
         } else {
-            // Return USDT
-            uint256 usdtAmount = (order.amount * order.price) / 1e6;
-            if (!IZRC20(usdtToken).transfer(order.owner, usdtAmount)) {
+            // Return USDC
+            uint256 usdcAmount = (order.amount * order.price) / 1e6;
+            if (!IZRC20(usdcToken).transfer(order.owner, usdcAmount)) {
                 revert TransferFailed();
             }
         }
@@ -229,12 +228,12 @@ contract ZetaOrderBook is UniversalContract {
         order.active = false;
 
         if (order.orderType == OrderType.SELL) {
-            // SELL Order: Swap native ZETA for USDT
+            // SELL Order: Swap native ZETA for USDC
 
             // Path for swap
             address[] memory path = new address[](2);
             path[0] = address(0); // For swapExactETHForTokens, first path element is ignored but conventionally address(0) or WETH address
-            path[1] = usdtToken;
+            path[1] = usdcToken;
 
             try swapRouter.swapExactETHForTokens{value: order.amount}(
                 0, // Min output
@@ -242,32 +241,32 @@ contract ZetaOrderBook is UniversalContract {
                 order.owner, // Send directly to owner
                 block.timestamp + 15 minutes
             ) returns (uint256[] memory amounts) {
-                emit SwapCompleted(address(0), usdtToken, order.amount, amounts[1]);
+                emit SwapCompleted(address(0), usdcToken, order.amount, amounts[1]);
             } catch {
                 revert SwapFailed();
             }
         } else {
-            // BUY Order: Swap USDT for native ZETA
+            // BUY Order: Swap USDC for native ZETA
 
-            // Calculate USDT amount to use
-            uint256 usdtAmount = (order.amount * order.price) / 1e6;
+            // Calculate USDC amount to use
+            uint256 usdcAmount = (order.amount * order.price) / 1e6;
 
             // Approve router
-            IZRC20(usdtToken).approve(address(swapRouter), usdtAmount);
+            IZRC20(usdcToken).approve(address(swapRouter), usdcAmount);
 
             // Path for swap
             address[] memory path = new address[](2);
-            path[0] = usdtToken;
+            path[0] = usdcToken;
             path[1] = address(0); // For swapExactTokensForETH, last element is ignored but conventionally address(0) or WETH address
 
             try swapRouter.swapExactTokensForETH(
-                usdtAmount,
+                usdcAmount,
                 0, // Min output
                 path,
                 order.owner, // Send directly to owner
                 block.timestamp + 15 minutes
             ) returns (uint256[] memory amounts) {
-                emit SwapCompleted(usdtToken, address(0), usdtAmount, amounts[1]);
+                emit SwapCompleted(usdcToken, address(0), usdcAmount, amounts[1]);
             } catch {
                 revert SwapFailed();
             }
@@ -302,7 +301,7 @@ contract ZetaOrderBook is UniversalContract {
         // Call the external contract to trigger the loop
         try gateway.call(
             callbackAddress,
-            usdtToken,
+            usdcToken,
             message,
             callOptions,
             revertOptions

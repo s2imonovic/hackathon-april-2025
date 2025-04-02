@@ -118,7 +118,7 @@ async function main() {
             "0x6c533f7fe93fae114d0954697069df33c9b74fd7", // ZetaChain Gateway
             "0x0708325268dF9F66270F1401206434524814508b", // Pyth Oracle
             "0x2ca7d64A7EFE2D62A725E2B35Cf7230D6677FfEe", // UniswapV2 Router
-            "0x4bC32034caCcc9B7e02536945eDbC286bACbA073", // USDC.ARBSEP
+            "0xcC683A782f4B30c138787CB5576a86AF66fdc31d", // USDC.SEP
             "0xb70656181007f487e392bf0d92e55358e9f0da5da6531c7c4ce7828aa11277fe", // ZETA price ID
             "0xc0B74d761ef4EC9e9473f65687d36B9F13DB0dCc", // Base Sepolia Connector
             callbackConnectorAddress

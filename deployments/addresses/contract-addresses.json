@@ -1,8 +1,8 @@
 {
     "base_sepolia": {
-        "CallbackConnector": "0x9C1357bA24798E3896002b94238f4D030bA26c96"
+        "CallbackConnector": "0x5a8FEE936947cb5F7c9C7DE280F7E4c7Aa88f239"
     },
     "testnet": {
-        "ZetaOrderBook": "0xa8b831CD75b35E09522260C03554310eC88d2b83"
+        "ZetaOrderBook": "0xdF0e05429AE89dae2F33f8914D91acDa621ae643"
     }
 }

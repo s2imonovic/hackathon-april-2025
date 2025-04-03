@@ -13,19 +13,25 @@ module.exports = {
   networks: {
     base_sepolia: {
       url: 'https://sepolia.base.org',
-      accounts: [process.env.PK || PK],
+      accounts: [PK],
       chainId: 84532,
       gasPrice: 1000000000
     },
     testnet: {
       url: 'https://zetachain-testnet.public.blastapi.io',
-      accounts: [process.env.PK || PK],
+      accounts: [PK],
       chainId: 7001,
       gasPrice: 10000000000
     },
+    base: {
+      url: 'https://mainnet.base.org',
+      accounts: [PK],
+      chainId: 8453,
+      gasPrice: 1000000000
+    },
     mainnet: {
       url: 'https://zetachain-evm.blockpi.network/v1/rpc/public',
-      accounts: [process.env.PK || PK],
+      accounts: [PK],
       chainId: 7000,
       gasPrice: 10000000
     },

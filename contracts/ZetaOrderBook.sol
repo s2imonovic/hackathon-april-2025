@@ -35,7 +35,7 @@ interface IZetaSwap {
     ) external returns (uint256[] memory amounts);
 }
 
-contract ZetaOrderBook is UniversalContract {
+contract ZetaOrderBookIzumi is UniversalContract {
     GatewayZEVM public immutable gateway;
     IPyth public immutable pythOracle;
     IZetaSwap public swapRouter;

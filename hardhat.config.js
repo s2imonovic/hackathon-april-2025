@@ -61,16 +61,18 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-      base_sepolia: process.env.BLOCKSCOUT_API_KEY || "",
-      testnet: process.env.BLOCKSCOUT_API_KEY || ""
+      base_sepolia: process.env.BASESCAN_API_KEY || "",
+      testnet: process.env.BLOCKSCOUT_API_KEY || "",
+      base: process.env.BASESCAN_API_KEY || "",
+      mainnet: process.env.BLOCKSCOUT_API_KEY || ""
     },
     customChains: [
       {
         network: "base_sepolia",
         chainId: 84532,
         urls: {
-          apiURL: "https://base-sepolia.blockscout.com/api",
-          browserURL: "https://base-sepolia.blockscout.com"
+          apiURL: "https://api-sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org"
         }
       },
       {
@@ -79,6 +81,22 @@ module.exports = {
         urls: {
           apiURL: "https://zetachain-testnet.blockscout.com/api",
           browserURL: "https://zetachain-testnet.blockscout.com"
+        }
+      },
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org"
+        }
+      },
+      {
+        network: "mainnet",
+        chainId: 7000,
+        urls: {
+          apiURL: "https://zetachain.blockscout.com/api",
+          browserURL: "https://zetachain.blockscout.com"
         }
       }
     ]

@@ -5,7 +5,8 @@ require('@openzeppelin/hardhat-upgrades')
 require('@nomicfoundation/hardhat-verify');
 require('dotenv').config();
 
-const PK = `0x${"32c069bf3d38a060eacdc072eecd4ef63f0fc48895afbacbe185c97037789875"}`
+// Use the private key that corresponds to address 0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4 (.env) or 0xA9664FDf800930e5E5E879bCf8CE290943F1E30D (old)
+const PK = process.env.PK ? `0x${process.env.PK}` : `0x${"32c069bf3d38a060eacdc072eecd4ef63f0fc48895afbacbe185c97037789875"}`
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {

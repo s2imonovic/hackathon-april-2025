@@ -346,6 +346,12 @@ contract ZetaOrderBook is UniversalContract {
             path[0] = usdcToken;
             path[1] = address(0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf); // WZETA
 
+            // Ensure contract has enough USDC
+            if (contractUsdcBalance < usdcAmount) {
+                order.active = true;
+                revert InsufficientFunds();
+            }
+
             try swapRouter.swapExactTokensForETH(
                 usdcAmount,
                 minZetaOutput,

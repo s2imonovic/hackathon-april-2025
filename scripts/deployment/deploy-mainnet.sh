@@ -7,6 +7,10 @@ extract_address() {
     echo "$output" | grep "$pattern" | awk '{print $NF}' | tr -d '\r'
 }
 
+echo "🔍 Checking environment..."
+echo "🔑 Using private key from hardhat.config.js"
+echo "🌐 Network: Base mainnet and ZetaChain mainnet"
+
 echo "🚀 Starting deployment to Base mainnet..."
 BASE_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network base 2>&1)
 BASE_STATUS=$?
@@ -17,8 +21,13 @@ if [ $BASE_STATUS -ne 0 ]; then
     exit 1
 fi
 
-CALLBACK_CONNECTOR_ADDRESS=$(extract_address "$BASE_OUTPUT" "CallbackConnector deployed to Base mainnet:")
+# Debug: Show the full output to see what we're working with
+echo "📋 Base deployment output:"
+echo "$BASE_OUTPUT"
+
+CALLBACK_CONNECTOR_ADDRESS=$(extract_address "$BASE_OUTPUT" "CallbackConnector deployed to base:")
 echo "✅ Base mainnet deployment complete"
+echo "📝 CallbackConnector address: $CALLBACK_CONNECTOR_ADDRESS"
 
 echo "🚀 Starting deployment to ZetaChain mainnet..."
 MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network mainnet 2>&1)
@@ -30,8 +39,13 @@ if [ $MAINNET_STATUS -ne 0 ]; then
     exit 1
 fi
 
-ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "ZetaOrderBook deployed to ZetaChain mainnet:")
+# Debug: Show the full output to see what we're working with
+echo "📋 Mainnet deployment output:"
+echo "$MAINNET_OUTPUT"
+
+ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "ZetaOrderBook deployed to mainnet:")
 echo "✅ ZetaChain mainnet deployment complete"
+echo "📝 ZetaOrderBook address: $ZETA_ORDERBOOK_ADDRESS"
 
 echo "🚀 Setting universal contract address on Base mainnet..."
 SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract.js --network base 2>&1)

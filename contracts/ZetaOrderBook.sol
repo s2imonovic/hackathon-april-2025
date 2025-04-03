@@ -391,6 +391,14 @@ contract ZetaOrderBook is UniversalContract {
             orderId
         );
 
+        (, uint256 gasFee) = IZRC20(usdcToken).withdrawGasFeeWithGasLimit(
+            callOptions.gasLimit
+        );
+        if (!IZRC20(usdcToken).transferFrom(msg.sender, address(this), gasFee)) {
+            revert TransferFailed();
+        }
+        IZRC20(usdcToken).approve(address(gateway), gasFee);
+
         // Call the external contract to trigger the loop
         try gateway.call(
             callbackAddress,

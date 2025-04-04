@@ -9,7 +9,7 @@ async function main() {
     // Get contract addresses
     const savedAddresses = getSavedContractAddresses();
     const callbackConnectorAddress = savedAddresses[network]?.CallbackConnector;
-    const zetaOrderBookAddress = savedAddresses[network === 'base_sepolia' ? 'testnet' : 'mainnet']?.['ZetaOrderBook-izumi'];
+    const zetaOrderBookAddress = savedAddresses[network === 'base_sepolia' ? 'testnet' : 'mainnet']?.['ZetaOrderBookIzumi'];
 
     if (!callbackConnectorAddress || !zetaOrderBookAddress) {
         throw new Error("Contract addresses not found. Please deploy contracts first.");

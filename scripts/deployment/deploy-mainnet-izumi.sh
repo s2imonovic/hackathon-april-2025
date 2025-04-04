@@ -30,7 +30,7 @@ echo "✅ Base mainnet deployment complete"
 echo "📝 CallbackConnector address: $CALLBACK_CONNECTOR_ADDRESS"
 
 echo "🚀 Starting deployment to ZetaChain mainnet..."
-MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook-izumi.js --network mainnet 2>&1)
+MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook-izumi.js --network mainnet) # 2>&1)
 MAINNET_STATUS=$?
 
 if [ $MAINNET_STATUS -ne 0 ]; then
@@ -43,12 +43,12 @@ fi
 echo "📋 Mainnet deployment output:"
 echo "$MAINNET_OUTPUT"
 
-ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "ZetaOrderBook-izumi deployed to mainnet:")
+ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "zetaOrderBook deployed to mainnet:")
 echo "✅ ZetaChain mainnet deployment complete"
-echo "📝 ZetaOrderBook-izumi address: $ZETA_ORDERBOOK_ADDRESS"
+echo "📝 ZetaOrderBookIzumi address: $ZETA_ORDERBOOK_ADDRESS"
 
 echo "🚀 Setting universal contract address on Base mainnet..."
-SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract-izumi.js --network base 2>&1)
+SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract-izumi.js --network base) # 2>&1)
 SET_UNIVERSAL_STATUS=$?
 
 if [ $SET_UNIVERSAL_STATUS -ne 0 ]; then
@@ -60,4 +60,4 @@ fi
 echo "✅ Deployment complete!"
 echo "📝 Contract Addresses:"
 echo "CallbackConnector (Base mainnet): $CALLBACK_CONNECTOR_ADDRESS"
-echo "ZetaOrderBook-izumi (ZetaChain mainnet): $ZETA_ORDERBOOK_ADDRESS" 
+echo "ZetaOrderBookIzumi (ZetaChain mainnet): $ZETA_ORDERBOOK_ADDRESS" 

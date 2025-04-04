@@ -12,11 +12,22 @@ import { BarChart3 } from "lucide-react"
 import { useAccount, useWriteContract, useReadContract } from "wagmi"
 
 // Import the ABI from your JSON file
-import contractAbis from "@/deployments/abis/contract-abis-testnet.json"
-const zetaOrderBookABI = contractAbis.testnet.ZetaOrderBook.abi
+import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
+const zetaOrderBookABI = contractAbis.mainnet.ZetaOrderBook.abi
 
 // Replace with your deployed contract address
-const zetaOrderBookAddress = "0xYourContractAddress"
+const zetaOrderBookAddress = "0x4c901FF88a155778F884284fFF33518643812106"
+
+// Define an interface for the order data structure
+interface OrderDetails {
+  0: bigint; // order ID
+  1: string; // maker address
+  2: bigint; // amount
+  3: bigint; // target price
+  4: bigint; // slippage
+  5: number; // order type (0 = Buy, 1 = Sell)
+  6: boolean; // is active
+}
 
 export function TradingPage() {
   // Existing states
@@ -55,6 +66,52 @@ export function TradingPage() {
   const { writeContract: writeWithdrawZeta } = useWriteContract()
   const { writeContract: writeCancelOrder } = useWriteContract()
 
+  // Read contract hooks
+  const { data: nextOrderIdData, refetch: refetchNextOrderId } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "nextOrderId",
+    chainId,
+  })
+
+  const { data: contractZetaBalanceData, refetch: refetchContractZetaBalance } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "contractZetaBalance",
+    chainId,
+  })
+
+  const { data: contractUsdcBalanceData, refetch: refetchContractUsdcBalance } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "contractUsdcBalance",
+    chainId,
+  })
+
+  const { data: orderDetailsData, refetch: refetchOrderDetails } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "orders",
+    args: [cancelOrderId ? parseInt(cancelOrderId) : 0],
+    chainId,
+  }) as { data: OrderDetails | undefined, refetch: () => void }
+
+  const { data: userUsdcBalanceData, refetch: refetchUserUsdcBalance } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "userUsdcBalance",
+    args: [address],
+    chainId,
+  })
+
+  const { data: userZetaBalanceData, refetch: refetchUserZetaBalance } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "userZetaBalance",
+    args: [address],
+    chainId,
+  })
+
   const { data: zetaPriceData, refetch: refetchPrice } = useReadContract({
     address: zetaOrderBookAddress,
     abi: zetaOrderBookABI,
@@ -69,6 +126,42 @@ export function TradingPage() {
       setPriceTimestamp(timestamp)
     }
   }, [zetaPriceData])
+
+  useEffect(() => {
+    if (nextOrderIdData) {
+      console.log("Next Order ID:", nextOrderIdData.toString())
+    }
+  }, [nextOrderIdData])
+
+  useEffect(() => {
+    if (contractZetaBalanceData) {
+      console.log("Contract ZETA Balance:", contractZetaBalanceData.toString())
+    }
+  }, [contractZetaBalanceData])
+
+  useEffect(() => {
+    if (contractUsdcBalanceData) {
+      console.log("Contract USDC Balance:", contractUsdcBalanceData.toString())
+    }
+  }, [contractUsdcBalanceData])
+
+  useEffect(() => {
+    if (orderDetailsData) {
+      console.log("Order Details:", orderDetailsData)
+    }
+  }, [orderDetailsData])
+
+  useEffect(() => {
+    if (userUsdcBalanceData) {
+      console.log("User USDC Balance:", userUsdcBalanceData.toString())
+    }
+  }, [userUsdcBalanceData])
+
+  useEffect(() => {
+    if (userZetaBalanceData) {
+      console.log("User ZETA Balance:", userZetaBalanceData.toString())
+    }
+  }, [userZetaBalanceData])
 
   // Deposit functions
   const handleDepositUsdc = () => {
@@ -87,7 +180,9 @@ export function TradingPage() {
       address: zetaOrderBookAddress,
       abi: zetaOrderBookABI,
       functionName: "depositZeta",
-      value: depositZetaAmount ? BigInt(depositZetaAmount) : BigInt(0),
+      value: depositZetaAmount
+        ? BigInt(Math.floor(parseFloat(depositZetaAmount) * 1e18)) // Convert to smallest unit (wei)
+        : BigInt(0),
     })
   }
 
@@ -271,7 +366,7 @@ export function TradingPage() {
                           </Label>
                           <Input
                             id="order-target-price"
-                            placeholder="e.g., 1240000 for $1.24"
+                            placeholder="e.g., 246500 for $0.2465"
                             value={orderTargetPrice}
                             onChange={(e) => setOrderTargetPrice(e.target.value)}
                             className="bg-base-100 border-base-300 text-base-content"
@@ -414,7 +509,7 @@ export function TradingPage() {
                       <span className="text-base-content">ZETA Price</span>
                     </div>
                     <div className="text-base-content font-medium">
-                      {zetaPrice ? `$${(Number(zetaPrice) / 1e6).toFixed(6)}` : "$--.--"}
+                      {zetaPrice ? `$${(Number(zetaPrice) / 1e8).toFixed(6)}` : "$--.--"}
                       {priceTimestamp && (
                         <span className="ml-2 text-xs text-base-content/70">
                           (Updated: {new Date(Number(priceTimestamp) * 1000).toLocaleTimeString()})
@@ -422,36 +517,109 @@ export function TradingPage() {
                       )}
                     </div>
                   </div>
-                  <Button size="sm" variant="outline" onClick={refreshPrice}>
+                  {/* <Button size="sm" variant="outline" onClick={refreshPrice}>
                     Refresh Price
-                  </Button>
+                  </Button> */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-base-content">Market Trend</span>
-                    </div>
-                    <div className="text-success font-medium">Bullish</div>
+                    <span className="text-base-content">Next Order ID</span>
+                    <span className="text-base-content font-medium">
+                      {nextOrderIdData ? nextOrderIdData.toString() : "--"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-base-content">Contract ZETA Balance</span>
+                    <span className="text-base-content font-medium">
+                      {contractZetaBalanceData ? `${(Number(contractZetaBalanceData) / 1e18).toFixed(6)} ZETA` : "--"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-base-content">Contract USDC Balance</span>
+                    <span className="text-base-content font-medium">
+                      {contractUsdcBalanceData ? `${(Number(contractUsdcBalanceData) / 1e6).toFixed(2)} USDC` : "--"}
+                    </span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Bot Performance */}
+            {/* User Balances */}
             <Card className="bg-base-200 border-base-300">
               <CardHeader>
-                <CardTitle className="text-base-content">Bot Performance</CardTitle>
-                <CardDescription className="text-base-content/70">Historical trading results</CardDescription>
+                <CardTitle className="text-base-content">User Balances</CardTitle>
+                <CardDescription className="text-base-content/70">Your current token balances</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-base-content">Last 7 Days</span>
+                    <span className="text-base-content">USDC Balance</span>
+                    <span className="text-base-content font-medium">
+                      {userUsdcBalanceData ? `${(Number(userUsdcBalanceData) / 1e6).toFixed(2)} USDC` : "--"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-base-content">Last 30 Days</span>
+                    <span className="text-base-content">ZETA Balance</span>
+                    <span className="text-base-content font-medium">
+                      {userZetaBalanceData ? `${(Number(userZetaBalanceData) / 1e18).toFixed(6)} ZETA` : "--"}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-base-content">Win Rate</span>
-                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Order Details */}
+            <Card className="bg-base-200 border-base-300">
+              <CardHeader>
+                <CardTitle className="text-base-content">Order Details</CardTitle>
+                <CardDescription className="text-base-content/70">Details of the selected order</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {orderDetailsData ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base-content">Order ID</span>
+                        <span className="text-base-content font-medium">{cancelOrderId}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base-content">Maker</span>
+                        <span className="text-base-content font-medium text-xs truncate max-w-[180px]">
+                          {orderDetailsData[1]}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base-content">Amount</span>
+                        <span className="text-base-content font-medium">
+                          {orderDetailsData[2]?.toString() || "0"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base-content">Target Price</span>
+                        <span className="text-base-content font-medium">
+                          ${(Number(orderDetailsData[3] || 0) / 1e6).toFixed(6)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base-content">Slippage</span>
+                        <span className="text-base-content font-medium">
+                          {(Number(orderDetailsData[4] || 0) / 100).toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base-content">Type</span>
+                        <span className="text-base-content font-medium">
+                          {Number(orderDetailsData[5]) === 0 ? "Buy" : "Sell"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base-content">Status</span>
+                        <span className={`font-medium ${orderDetailsData[6] ? "text-green-500" : "text-red-500"}`}>
+                          {orderDetailsData[6] ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-base-content/70">No order details available</span>
+                  )}
                 </div>
               </CardContent>
             </Card>

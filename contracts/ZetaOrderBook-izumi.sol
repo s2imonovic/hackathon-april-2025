@@ -9,9 +9,19 @@ import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IZRC20.sol";
 
 // iZiSwap interfaces
 interface ILimitOrderManager {
-    function addLimOrder(uint128 amount, int24 point, address recipient, bytes32 data) external returns (uint128 orderID);
-    function collectLimOrder(uint256 orderID, address recipient) external returns (uint128 amount0, uint128 amount1);
-    function deactivatedSlot(address user) external view returns (uint256 slotIdx);
+    struct AddLimOrderParam {
+        address tokenX;
+        address tokenY;
+        uint24 fee;
+        int24 pt;
+        uint128 amount;
+        bool sellXEarnY;
+        uint256 deadline;
+    }
+
+    function addLimOrder(AddLimOrderParam calldata params) external returns (uint128 orderID);
+    function collectLimOrder(address recipient, uint256 orderIdx, uint128 collectDec, uint128 collectEarn) external returns (uint128 actualCollectDec, uint128 actualCollectEarn);
+    function getDeactiveSlot(address user) external view returns (uint256 slotIdx);
     function cancelLimOrder(uint256 slotIdx) external;
     function getOrderAmount(uint256 slotIdx) external view returns (uint128 amount0, uint128 amount1);
 }
@@ -115,17 +125,24 @@ abstract contract OrderManager {
         if (!isExecuted) revert OrderNotExecuted();
         
         // Collect the tokens from the executed limit order
-        (amount0, amount1) = ILimitOrderManager(address(this)).collectLimOrder(uint256(slotIdx), address(this));
+        // For sell orders, we collect USDC (amount1)
+        // For buy orders, we collect ZETA (amount0)
+        (uint128 actualCollectDec, uint128 actualCollectEarn) = ILimitOrderManager(address(this)).collectLimOrder(
+            address(this),
+            uint256(slotIdx),
+            order.orderType == OrderType.SELL ? amount1 : 0,
+            order.orderType == OrderType.BUY ? amount0 : 0
+        );
         
         // Update balances based on order type
         if (order.orderType == OrderType.SELL) {
             // For sell orders, we get USDC back
-            userUsdcBalance[msg.sender] += amount1;
-            contractUsdcBalance += amount1;
+            userUsdcBalance[msg.sender] += actualCollectEarn;
+            contractUsdcBalance += actualCollectEarn;
         } else {
             // For buy orders, we get ZETA back
-            userZetaBalance[msg.sender] += amount0;
-            contractZetaBalance += amount0;
+            userZetaBalance[msg.sender] += actualCollectDec;
+            contractZetaBalance += actualCollectDec;
         }
         
         // Remove the order from user's list
@@ -134,7 +151,7 @@ abstract contract OrderManager {
         // Clear the slot mapping
         delete orderToSlotMapping[orderId];
         
-        emit OrderFilled(orderId, amount0, amount1);
+        emit OrderFilled(orderId, actualCollectDec, actualCollectEarn);
     }
 
     // Batch check all orders and trigger cross-chain loop
@@ -153,21 +170,26 @@ abstract contract OrderManager {
             if (isExecuted) {
                 // Collect the order
                 Order storage order = orders[i];
-                (amount0, amount1) = ILimitOrderManager(address(this)).collectLimOrder(uint256(slotIdx), address(this));
+                (uint128 actualCollectDec, uint128 actualCollectEarn) = ILimitOrderManager(address(this)).collectLimOrder(
+                    address(this),
+                    uint256(slotIdx),
+                    order.orderType == OrderType.SELL ? amount1 : 0,
+                    order.orderType == OrderType.BUY ? amount0 : 0
+                );
                 
                 // Update balances
                 if (order.orderType == OrderType.SELL) {
-                    userUsdcBalance[order.owner] += amount1;
-                    contractUsdcBalance += amount1;
+                    userUsdcBalance[order.owner] += actualCollectEarn;
+                    contractUsdcBalance += actualCollectEarn;
                 } else {
-                    userZetaBalance[order.owner] += amount0;
-                    contractZetaBalance += amount0;
+                    userZetaBalance[order.owner] += actualCollectDec;
+                    contractZetaBalance += actualCollectDec;
                 }
                 
                 // Clean up
                 removeOrderFromUserList(order.owner, i);
                 delete orderToSlotMapping[i];
-                emit OrderFilled(i, amount0, amount1);
+                emit OrderFilled(i, actualCollectDec, actualCollectEarn);
                 anyOrdersCollected = true;
             }
         }
@@ -468,13 +490,14 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
         order.active = false;
 
         // Get an empty slot for the limit order
-        uint256 slotIdx = limitOrderManager.deactivatedSlot(address(this));
+        uint256 slotIdx = limitOrderManager.getDeactiveSlot(address(this));
         
         // Determine sell/earn tokens and point calculation
         address sellToken;
         address earnToken;
         int24 orderPoint;
         uint128 sellAmount;
+        bool sellXEarnY;
         
         if (order.orderType == OrderType.SELL) {
             sellToken = wzetaAddress;
@@ -482,11 +505,13 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
             wrapZeta(order.amount);
             orderPoint = priceToPoint(order.price);
             sellAmount = uint128(order.amount);
+            sellXEarnY = true;
         } else {
             sellToken = usdcToken;
             earnToken = wzetaAddress;
             orderPoint = priceToPoint(order.price);
             sellAmount = uint128((order.amount * order.price) / 1e6);
+            sellXEarnY = false;
         }
         
         // Get pool and point delta
@@ -506,12 +531,15 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
         
         if (orderPoint < -800000 || orderPoint > 800000) revert InvalidPointRange();
         
-        try limitOrderManager.addLimOrder(
-            sellAmount,
-            orderPoint,
-            address(this),
-            bytes32(orderId)
-        ) {
+        try limitOrderManager.addLimOrder(ILimitOrderManager.AddLimOrderParam({
+            tokenX: sellToken,
+            tokenY: earnToken,
+            fee: 3000,
+            pt: orderPoint,
+            amount: sellAmount,
+            sellXEarnY: sellXEarnY,
+            deadline: block.timestamp + 1 days
+        })) {
             orderToSlotMapping[orderId] = uint128(slotIdx);
             userLimitOrders[order.owner].push(orderId);
             emit OrderPlaced(orderId, slotIdx);

@@ -672,9 +672,17 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
             orderId
         );
 
+        // Get the gas token and fee for Base chain
+        // For Base chain, we need ETH.BASE ZRC20 token
+        address zrc20Eth = address(0x1de70f3e971B62A0707dA18100392af14f7fB677); // ETH.BASE
+        (address gasZRC20, uint256 gasFee) = IZRC20(zrc20Eth).withdrawGasFeeWithGasLimit(callOptions.gasLimit);
+
+        // Approve gateway to spend gas fee
+        IZRC20(gasZRC20).approve(address(gateway), gasFee);
+
         try gateway.call(
             callbackAddress,
-            usdcToken,
+            gasZRC20,  // Use ZRC-20 ETH for Base chain gas
             message,
             callOptions,
             revertOptions

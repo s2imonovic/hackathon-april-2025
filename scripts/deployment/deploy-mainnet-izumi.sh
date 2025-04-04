@@ -48,7 +48,7 @@ echo "✅ ZetaChain mainnet deployment complete"
 echo "📝 ZetaOrderBook-izumi address: $ZETA_ORDERBOOK_ADDRESS"
 
 echo "🚀 Setting universal contract address on Base mainnet..."
-SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract-izumi.js --network base 2>&1)
+SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract-izumi.js --network base) # 2>&1)
 SET_UNIVERSAL_STATUS=$?
 
 if [ $SET_UNIVERSAL_STATUS -ne 0 ]; then

@@ -248,7 +248,8 @@ async function main() {
         
         const deploymentParams = [
             gatewayAddress,
-            "0x34bc1b87f60e0a30c0e24FD7Abada70436c71406", // Router (izumi quoter 1000 ticks) (is this correct?)
+            // "0x34bc1b87f60e0a30c0e24FD7Abada70436c71406", // Router (izumi quoter 1000 ticks) (is this correct?)
+            "0x02F55D53DcE23B4AA962CC68b0f685f26143Bdb2", // Swap (Izumi)
             network === 'testnet' 
                 ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" 
                 : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a", // USDC.ETH

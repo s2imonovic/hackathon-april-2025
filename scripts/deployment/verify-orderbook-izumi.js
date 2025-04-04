@@ -34,30 +34,19 @@ async function main() {
     
     const deploymentParams = [
         gatewayAddress,
-        "0x34bc1b87f60e0a30c0e24FD7Abada70436c71406", // Router
+        "0x02F55D53DcE23B4AA962CC68b0f685f26143Bdb2", // Swap (Izumi)
         network === 'testnet' 
             ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" 
-            : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a", // USDC
+            : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a", // USDC.ETH
         network === 'testnet'
             ? "0x236b0DE675cC8F46AE186897fCCeFe3370C9eDeD"  // Testnet ETH.BASE ZRC20
-            : "0x1de70f3e971B62A0707dA18100392af14f7fB677", // Mainnet ETH.BASE ZRC20
-        hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]),
-        "0x3EF68D3f7664b2805D4E88381b64868a56f88bC4", // LimitOrderManager
-        "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91" // WZETA
+            : "0x1de70f3e971B62A0707dA18100392af14f7fB677", // Destination Network Gas Token (Mainnet ETH.BASE ZRC20)
+        callbackConnectorAddress, // hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]),
+        "0x1502d025BfA624469892289D45C0352997251728", // LimitOrderManager
+        "0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf" // WZETA
     ];
     
-    console.log("\n📋 Verification Parameters:");
-    console.log("1. Gateway Address:", gatewayAddress);
-    console.log("2. Router Address:", "0x34bc1b87f60e0a30c0e24FD7Abada70436c71406");
-    console.log("3. USDC Address:", network === 'testnet' 
-        ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" 
-        : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a");
-    console.log("4. ETH.BASE ZRC20 Address:", network === 'testnet'
-        ? "0x236b0DE675cC8F46AE186897fCCeFe3370C9eDeD"
-        : "0x1de70f3e971B62A0707dA18100392af14f7fB677");
-    console.log("5. Callback Address (encoded):", hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]));
-    console.log("6. Limit Order Manager:", "0x3EF68D3f7664b2805D4E88381b64868a56f88bC4");
-    console.log("7. WZETA Address:", "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91");
+    console.log(`\n📝 Verification Parameters:`, JSON.stringify(deploymentParams, null, 2));
     
     // Verify contract
     console.log("\n🔍 Starting contract verification...");
@@ -95,6 +84,7 @@ async function verifyWithRetries(address, constructorArguments, contractName, ma
             
             // Check for rate limit error (429)
             if (error.message.includes("429") || error.message.includes("rate limit")) {
+                console.log(`${error.message}`);
                 const delay = Math.min(30 * Math.pow(2, i), 150); // Exponential backoff with 2.5 min cap
                 console.log(`Rate limited. Waiting ${delay} seconds before retry...`);
                 

@@ -31,7 +31,8 @@ module.exports = {
       gasPrice: 1000000000
     },
     mainnet: {
-      url: 'https://zetachain-evm.blockpi.network/v1/rpc/public',
+      // url: 'https://zetachain-evm.blockpi.network/v1/rpc/public',
+      url: 'https://zetachain-mainnet.g.allthatnode.com/archive/evm',
       accounts: [PK],
       chainId: 7000,
       gasPrice: 10000000

@@ -198,7 +198,7 @@ async function main() {
         console.log("📝 Preparing deployment parameters...");
         const gatewayAddress = network === 'base_sepolia' 
             ? "0x0c487a766110c85d301d96e33579c5b317fa4995"  // Base Sepolia Gateway
-            : "0x48B9AACC350b20147001f88821d31731Ba4C30ed"; // Base Mainnet Gateway
+            : "0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E"; // Base Mainnet Gateway
         
         console.log("🚀 Deploying CallbackConnector...");
         const callbackConnector = await CallbackConnector.deploy(

@@ -52,7 +52,7 @@ async function saveContractCodeHash(contractName, network) {
 }
 
 // Helper function to verify contract with retries
-async function verifyWithRetries(address, constructorArguments, contractName, maxRetries = 1) {
+async function verifyWithRetries(address, constructorArguments, contractName, maxRetries = 5) {
     const network = hre.network.name;
     const contractUrl = getContractUrl(network, address);
 

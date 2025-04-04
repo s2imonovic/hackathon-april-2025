@@ -206,7 +206,7 @@ abstract contract OrderManager {
     function triggerRemoteCallback(uint256 orderId) internal virtual;
 }
 
-abstract contract ZetaOrderBook is UniversalContract, OrderManager {
+contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
     GatewayZEVM public immutable gateway;
     IZetaSwap public swapRouter;
 
@@ -270,6 +270,7 @@ abstract contract ZetaOrderBook is UniversalContract, OrderManager {
 
         // Approve USDC and WZETA for the router and limit order manager
         IZRC20(usdcToken).approve(address(swapRouter), type(uint256).max);
+        IZRC20(wzetaAddress).approve(address(swapRouter), type(uint256).max);
         IZRC20(usdcToken).approve(address(limitOrderManager), type(uint256).max);
         IZRC20(wzetaAddress).approve(address(limitOrderManager), type(uint256).max);
     }

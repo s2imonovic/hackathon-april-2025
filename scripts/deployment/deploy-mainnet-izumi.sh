@@ -43,7 +43,7 @@ fi
 echo "📋 Mainnet deployment output:"
 echo "$MAINNET_OUTPUT"
 
-ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "ZetaOrderBookIzumi deployed to mainnet:")
+ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "zetaOrderBook deployed to mainnet:")
 echo "✅ ZetaChain mainnet deployment complete"
 echo "📝 ZetaOrderBookIzumi address: $ZETA_ORDERBOOK_ADDRESS"
 

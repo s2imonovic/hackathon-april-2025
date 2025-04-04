@@ -268,11 +268,29 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
         limitOrderManager = ILimitOrderManager(_limitOrderManagerAddress);
         wzetaAddress = _wzetaAddress;
 
-        // Approve USDC and WZETA for the router and limit order manager
-        IZRC20(usdcToken).approve(address(swapRouter), type(uint256).max);
-        IZRC20(wzetaAddress).approve(address(swapRouter), type(uint256).max);
-        IZRC20(usdcToken).approve(address(limitOrderManager), type(uint256).max);
-        IZRC20(wzetaAddress).approve(address(limitOrderManager), type(uint256).max);
+        // Approve USDC and WZETA for the router and limit order manager, with checks
+        if (!IZRC20(usdcToken).approve(address(swapRouter), type(uint256).max)) {
+            revert TransferFailed();
+        }
+        if (!IZRC20(wzetaAddress).approve(address(swapRouter), type(uint256).max)) {
+            revert TransferFailed();
+        }
+        if (!IZRC20(usdcToken).approve(address(limitOrderManager), type(uint256).max)) {
+            revert TransferFailed();
+        }
+        if (!IZRC20(wzetaAddress).approve(address(limitOrderManager), type(uint256).max)) {
+            revert TransferFailed();
+        }
+
+        // Verify approvals
+        require(
+            IZRC20(usdcToken).allowance(address(this), address(limitOrderManager)) == type(uint256).max,
+            "USDC approval failed"
+        );
+        require(
+            IZRC20(wzetaAddress).allowance(address(this), address(limitOrderManager)) == type(uint256).max,
+            "WZETA approval failed"
+        );
     }
 
     // Create a sell order for ZETA (native token)

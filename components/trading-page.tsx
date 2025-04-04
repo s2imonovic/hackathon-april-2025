@@ -10,15 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BarChart3 } from "lucide-react"
 import { useAccount, useWriteContract, useReadContract } from "wagmi"
-
-// Import the ABI from your JSON file
 import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
+import contractAddresses from "@/deployments/addresses/contract-addresses.json"
+
 const zetaOrderBookABI = contractAbis.mainnet.ZetaOrderBook.abi
+const zetaOrderBookAddress = contractAddresses.mainnet.ZetaOrderBook as `0x${string}`
 
-// Replace with your deployed contract address
-const zetaOrderBookAddress = "0x4c901FF88a155778F884284fFF33518643812106"
-
-// Define an interface for the order data structure
 interface OrderDetails {
   0: bigint; // order ID
   1: string; // maker address
@@ -165,6 +162,10 @@ export function TradingPage() {
 
   // Deposit functions
   const handleDepositUsdc = () => {
+    if (!address) {
+      alert("Please connect your wallet to perform this action.")
+      return
+    }
     writeDepositUsdc({
       chainId,
       address: zetaOrderBookAddress,
@@ -175,6 +176,10 @@ export function TradingPage() {
   }
 
   const handleDepositZeta = () => {
+    if (!address) {
+      alert("Please connect your wallet to perform this action.")
+      return
+    }
     writeDepositZeta({
       chainId,
       address: zetaOrderBookAddress,
@@ -188,6 +193,10 @@ export function TradingPage() {
 
   // Order functions
   const handleCreateSellOrder = () => {
+    if (!address) {
+      alert("Please connect your wallet to perform this action.")
+      return
+    }
     writeCreateSellOrder({
       chainId,
       address: zetaOrderBookAddress,
@@ -201,6 +210,10 @@ export function TradingPage() {
   }
 
   const handleCreateBuyOrder = () => {
+    if (!address) {
+      alert("Please connect your wallet to perform this action.")
+      return
+    }
     writeCreateBuyOrder({
       chainId,
       address: zetaOrderBookAddress,
@@ -216,6 +229,10 @@ export function TradingPage() {
 
   // Withdrawal functions
   const handleWithdrawUsdc = () => {
+    if (!address) {
+      alert("Please connect your wallet to perform this action.")
+      return
+    }
     writeWithdrawUsdc({
       chainId,
       address: zetaOrderBookAddress,
@@ -226,6 +243,10 @@ export function TradingPage() {
   }
 
   const handleWithdrawZeta = () => {
+    if (!address) {
+      alert("Please connect your wallet to perform this action.")
+      return
+    }
     writeWithdrawZeta({
       chainId,
       address: zetaOrderBookAddress,
@@ -237,6 +258,10 @@ export function TradingPage() {
 
   // Cancel order function
   const handleCancelOrder = () => {
+    if (!address) {
+      alert("Please connect your wallet to perform this action.")
+      return
+    }
     writeCancelOrder({
       chainId,
       address: zetaOrderBookAddress,

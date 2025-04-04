@@ -348,12 +348,6 @@ async function main() {
             const zetaOrderBookAddress = await zetaOrderBook.getAddress();
             console.log(`✅ zetaOrderBook deployed to ${network}: ${zetaOrderBookAddress}`);
             
-            if (!zetaOrderBookAddress) {
-                throw new Error("Contract deployment failed - no contract address in receipt");
-            }
-            
-            console.log(`✅ ZetaOrderBookIzumi deployed to ${network}: ${zetaOrderBookAddress}`);
-
             // Save contract address and ABI
             console.log("💾 Saving contract details...");
             saveContractAddress(network, "ZetaOrderBookIzumi", zetaOrderBookAddress);

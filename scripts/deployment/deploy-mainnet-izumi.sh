@@ -30,7 +30,7 @@ echo "✅ Base mainnet deployment complete"
 echo "📝 CallbackConnector address: $CALLBACK_CONNECTOR_ADDRESS"
 
 echo "🚀 Starting deployment to ZetaChain mainnet..."
-MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook-izumi.js --network mainnet 2>&1)
+MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook-izumi.js --network mainnet) # 2>&1)
 MAINNET_STATUS=$?
 
 if [ $MAINNET_STATUS -ne 0 ]; then

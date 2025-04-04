@@ -52,7 +52,7 @@ async function saveContractCodeHash(contractName, network) {
 }
 
 // Helper function to verify contract with retries
-async function verifyWithRetries(address, constructorArguments, contractName, maxRetries = 10) {
+async function verifyWithRetries(address, constructorArguments, contractName, maxRetries = 1) {
     const network = hre.network.name;
     const contractUrl = getContractUrl(network, address);
 
@@ -86,6 +86,7 @@ async function verifyWithRetries(address, constructorArguments, contractName, ma
             await saveContractCodeHash(contractName, network);
             return;
         } catch (error) {
+            console.log(`${error.message}`);
             if (error.message.includes("already verified")) {
                 console.log("Contract is already verified");
                 console.log(`View contract at: ${contractUrl}`);
@@ -254,24 +255,27 @@ async function main() {
             network === 'testnet'
                 ? "0x236b0DE675cC8F46AE186897fCCeFe3370C9eDeD"  // Testnet ETH.BASE ZRC20
                 : "0x1de70f3e971B62A0707dA18100392af14f7fB677", // Mainnet ETH.BASE ZRC20
-            hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]),
+            callbackConnectorAddress, // hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]),
             "0x3EF68D3f7664b2805D4E88381b64868a56f88bC4", // LimitOrderManager
             "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91" // WZETA
         ];
-        
-        console.log("\n📋 Deployment Parameters:");
-        console.log("1. Gateway Address:", gatewayAddress);
-        console.log("2. Router Address:", "0x34bc1b87f60e0a30c0e24FD7Abada70436c71406");
-        console.log("3. USDC Address:", network === 'testnet' 
-            ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" 
-            : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a");
-        console.log("4. ETH.BASE ZRC20 Address:", network === 'testnet'
-            ? "0x236b0DE675cC8F46AE186897fCCeFe3370C9eDeD"
-            : "0x1de70f3e971B62A0707dA18100392af14f7fB677");
-        console.log("5. Callback Address (encoded):", hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]));
-        console.log("6. Limit Order Manager:", "0x3EF68D3f7664b2805D4E88381b64868a56f88bC4");
-        console.log("7. WZETA Address:", "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91");
-        
+       
+        console.log(`\n📝 Deployment Parameters:`, JSON.stringify(deploymentParams, null, 2));
+
+        // console.log("\n📋 Deployment Parameters:");
+        // console.log("1. Gateway Address:", gatewayAddress);
+        // console.log("2. Router Address:", "0x34bc1b87f60e0a30c0e24FD7Abada70436c71406");
+        // console.log("3. USDC Address:", network === 'testnet' 
+        //     ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" 
+        //     : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a");
+        // console.log("4. ETH.BASE ZRC20 Address:", network === 'testnet'
+        //     ? "0x236b0DE675cC8F46AE186897fCCeFe3370C9eDeD"
+        //     : "0x1de70f3e971B62A0707dA18100392af14f7fB677");
+        // // WRONG: console.log("5. Callback Address (encoded):", hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]));
+        // console.log("5. Callback Address:", hre.ethers.AbiCoder.defaultAbiCoder().encode(["address"], [callbackConnectorAddress]));
+        // console.log("6. Limit Order Manager:", "0x3EF68D3f7664b2805D4E88381b64868a56f88bC4");
+        // console.log("7. WZETA Address:", "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91");
+       
         console.log("\n🔍 Verifying parameter validity...");
         try {
             // Verify all addresses are valid
@@ -291,49 +295,57 @@ async function main() {
         
         console.log("\n🚀 Deploying ZetaOrderBookIzumi...");
         try {
-            // First try to estimate gas
-            console.log("⛽ Estimating gas...");
-            const deployTx = ZetaOrderBook.getDeployTransaction(...deploymentParams);
-            const gasEstimate = await hre.ethers.provider.estimateGas(deployTx);
-            console.log(`⛽ Estimated gas: ${gasEstimate.toString()}`);
+            // // First try to estimate gas
+            // console.log("⛽ Estimating gas...");
+            // const deployTx = ZetaOrderBook.getDeployTransaction(...deploymentParams);
+            // const gasEstimate = await hre.ethers.provider.estimateGas(deployTx);
+            // console.log(`⛽ Estimated gas: ${gasEstimate.toString()}`);
             
-            // Use a much higher gas limit for mainnet
-            const gasLimit = network === 'mainnet'
-                ? gasEstimate * 5n // 5x multiplier for mainnet
-                : gasEstimate * 12n / 10n; // 20% buffer for testnet
+            // // Use a much higher gas limit for mainnet
+            // const gasLimit = network === 'mainnet'
+            //     ? gasEstimate * 5n // 5x multiplier for mainnet
+            //     : gasEstimate * 12n / 10n; // 20% buffer for testnet
             
-            console.log(`⛽ Using gas limit: ${gasLimit.toString()}`);
+            // console.log(`⛽ Using gas limit: ${gasLimit.toString()}`);
             
-            // Get the signer from the provider
-            const signer = await hre.ethers.provider.getSigner();
-            if (!signer || !signer.address) {
-                throw new Error("Failed to get signer. Please check your hardhat configuration and private key setup.");
-            }
-            console.log("🔑 Using signer address:", signer.address);
+            // // Get the signer from the provider
+            // const signer = await hre.ethers.provider.getSigner();
+            // if (!signer || !signer.address) {
+            //     throw new Error("Failed to get signer. Please check your hardhat configuration and private key setup.");
+            // }
+            // console.log("🔑 Using signer address:", signer.address);
             
-            // Construct deployment transaction with all parameters
-            const deploymentTx = {
-                ...deployTx,
-                gasLimit: gasLimit,
-                gasPrice: finalGasPrice,
-                nonce: await hre.ethers.provider.getTransactionCount(signer.address)
-            };
+            // // Construct deployment transaction with all parameters
+            // const deploymentTx = {
+            //     ...deployTx,
+            //     gasLimit: gasLimit,
+            //     gasPrice: finalGasPrice,
+            //     nonce: await hre.ethers.provider.getTransactionCount(signer.address)
+            // };
             
-            console.log("\n📝 Deployment transaction details:");
-            console.log("Gas Limit:", deploymentTx.gasLimit.toString());
-            console.log("Gas Price:", deploymentTx.gasPrice.toString());
-            console.log("Nonce:", deploymentTx.nonce);
-            console.log("From:", signer.address);
-            console.log("Data Length:", deploymentTx.data?.length || 0);
+            // console.log("\n📝 Deployment transaction details:");
+            // console.log("Gas Limit:", deploymentTx.gasLimit.toString());
+            // console.log("Gas Price:", deploymentTx.gasPrice.toString());
+            // console.log("Nonce:", deploymentTx.nonce);
+            // console.log("From:", signer.address);
+            // console.log("Data Length:", deploymentTx.data?.length || 0);
             
             // Deploy using the signer
-            const zetaOrderBook = await signer.sendTransaction(deploymentTx);
-            console.log("⏳ Waiting for deployment confirmation...");
-            await zetaOrderBook.wait();
+            const zetaOrderBook = await ZetaOrderBook.deploy(
+                ...deploymentParams,
+                {
+                    gasPrice: finalGasPrice
+                }
+            );
             
-            // Get the deployed contract address from the receipt
-            const receipt = await hre.ethers.provider.getTransactionReceipt(zetaOrderBook.hash);
-            const zetaOrderBookAddress = receipt.contractAddress;
+            // const zetaOrderBook = await signer.sendTransaction(deploymentTx);
+            console.log("⏳ Waiting for deployment confirmation...");
+            // await zetaOrderBook.wait();
+
+            // Wait for deployment confirmation and get the contract address
+            await zetaOrderBook.waitForDeployment();
+            const zetaOrderBookAddress = await zetaOrderBook.getAddress();
+            console.log(`✅ zetaOrderBook deployed to ${network}: ${zetaOrderBookAddress}`);
             
             if (!zetaOrderBookAddress) {
                 throw new Error("Contract deployment failed - no contract address in receipt");

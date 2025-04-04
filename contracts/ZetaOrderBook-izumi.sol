@@ -242,6 +242,10 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
     IFactory public constant IZUMI_FACTORY = IFactory(0x8c7d3063579BdB0b90997e18A770eaE32E1eBb08);
     address public wzetaAddress;
 
+    // Gas management
+    uint256 public gasBalance;
+    address public owner;
+
     // Events
     event OrderCreated(uint256 indexed orderId, address indexed owner, OrderType orderType, uint256 amount, uint256 price);
     event OrderPlaced(uint256 indexed orderId, uint256 slotIdx);  // When order is placed in iZiSwap
@@ -251,6 +255,9 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
     event ZetaDeposited(address indexed user, uint256 amount);
     event UsdcWithdrawn(address indexed user, uint256 amount);
     event ZetaWithdrawn(address indexed user, uint256 amount);
+    event GasDeposited(address indexed user, uint256 amount);
+    event GasWithdrawn(address indexed user, uint256 amount);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event HelloEvent(string, string);
     event RevertEvent(string, RevertContext);
     event AbortEvent(string, AbortContext);
@@ -262,6 +269,13 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
     error PriceCheckFailed();
     error OrderNotActive();
     error InsufficientFunds();
+    error InsufficientGas();
+    error InvalidNewOwner();
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert Unauthorized();
+        _;
+    }
 
     modifier onlyGateway() {
         if (msg.sender != address(gateway)) revert Unauthorized();
@@ -289,6 +303,7 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
         callbackAddress = _callbackAddress;
         limitOrderManager = ILimitOrderManager(_limitOrderManagerAddress);
         wzetaAddress = _wzetaAddress;
+        owner = msg.sender;
 
         // Approve USDC and WZETA for the router and limit order manager, with checks
         if (!IZRC20(usdcToken).approve(address(swapRouter), type(uint256).max)) {
@@ -626,6 +641,26 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
         }
     }
 
+    // Deposit gas to the contract
+    function depositGas() external payable {
+        if (msg.value == 0) revert InsufficientFunds();
+        gasBalance += msg.value;
+        emit GasDeposited(msg.sender, msg.value);
+    }
+
+    // Withdraw gas from the contract (owner only)
+    function withdrawGas(uint256 amount) external onlyOwner {
+        if (gasBalance < amount) revert InsufficientGas();
+        gasBalance -= amount;
+        
+        (bool success, ) = payable(owner).call{value: amount}("");
+        if (!success) {
+            gasBalance += amount;
+            revert TransferFailed();
+        }
+        emit GasWithdrawn(owner, amount);
+    }
+
     // Universal contract functions
     function call(
         bytes memory receiver,
@@ -672,17 +707,34 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
             orderId
         );
 
-        try gateway.call(
-            callbackAddress,
-            usdcToken,
-            message,
-            callOptions,
-            revertOptions
-        ) {
-            // Success, loop initiated
-        } catch {
-            revert PriceCheckFailed();
+        // Calculate gas fee
+        (, uint256 gasFee) = IZRC20(usdcToken).withdrawGasFeeWithGasLimit(
+            callOptions.gasLimit
+        );
+
+        // Try to use contract's gas balance first
+        if (gasBalance >= gasFee) {
+            gasBalance -= gasFee;
+            try gateway.call(
+                callbackAddress,
+                usdcToken,
+                message,
+                callOptions,
+                revertOptions
+            ) {
+                // Success, loop initiated
+                return;
+            } catch {
+                gasBalance += gasFee;
+            }
         }
+
+        // Fallback to user's gas if contract gas fails or is insufficient
+        if (!IZRC20(usdcToken).transferFrom(msg.sender, address(this), gasFee)) {
+            revert TransferFailed();
+        }
+        IZRC20(usdcToken).approve(address(gateway), gasFee);
+        gateway.call(callbackAddress, usdcToken, message, callOptions, revertOptions);
     }
 
     // Modify onCall to handle batch checking
@@ -723,5 +775,13 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
         } else {
             emit HelloEvent("Hello on ZetaChain", "Received message");
         }
+    }
+
+    // Transfer ownership to a new address
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert InvalidNewOwner();
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
     }
 } 

@@ -162,9 +162,14 @@ async function main() {
     let finalGasPrice;
     try {
         const gasPrice = await hre.ethers.provider.getFeeData();
-        finalGasPrice = network === 'mainnet' 
-            ? gasPrice.gasPrice * 3n // 3x buffer for mainnet
-            : gasPrice.gasPrice * 15n / 10n; // 50% buffer for testnet
+        // For Base mainnet, use a reasonable gas price with small buffer
+        if (network === 'base') {
+            finalGasPrice = gasPrice.gasPrice * 11n / 10n; // 10% buffer
+        } else {
+            // For other networks, ensure minimum fee
+            const minGasPrice = 286410000000000n;
+            finalGasPrice = gasPrice.gasPrice > minGasPrice ? gasPrice.gasPrice : minGasPrice;
+        }
         console.log(`⛽ Base gas price: ${gasPrice.gasPrice} wei`);
         console.log(`⛽ Final gas price with buffer: ${finalGasPrice} wei`);
     } catch (error) {

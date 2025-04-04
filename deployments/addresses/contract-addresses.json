@@ -6,10 +6,10 @@
         "ZetaOrderBook": "0xdF0e05429AE89dae2F33f8914D91acDa621ae643"
     },
     "base": {
-        "CallbackConnector": "0x13bF2106e0792c494EC31653D665F83dD250284d"
+        "CallbackConnector": "0x9A3030DEd946B947871E6A78F63F83624975B2c2"
     },
     "mainnet": {
         "ZetaOrderBook": "0x4c901FF88a155778F884284fFF33518643812106",
-        "ZetaOrderBookIzumi": "0xe7ec841f3D5F4a83A3b2ceD383222a372805435b"
+        "ZetaOrderBookIzumi": "0xC4Ff23ffa91F4C6ce100792997452f9B9C1D1bFc"
     }
 }

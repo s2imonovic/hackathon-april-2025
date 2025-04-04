@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,14 +12,155 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Wallet, Info, BarChart3, Clock, TrendingUp, AlertTriangle } from "lucide-react"
 import { RecentTrades } from "@/components/recent-trades"
 import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { useAccount, useWriteContract, useReadContract } from "wagmi"
+
+// Import the ABI from your JSON file
+import contractAbis from "@/deployments/abis/contract-abis-testnet.json"
+const zetaOrderBookABI = contractAbis.testnet.ZetaOrderBook.abi
+
+// Replace with your deployed contract address
+const zetaOrderBookAddress = "0xYourContractAddress"
 
 export function TradingPage() {
+  // Existing states
   const [amount, setAmount] = useState("1000")
   const [riskLevel, setRiskLevel] = useState(50)
+
+  // States for deposit and order creation
+  const [depositUsdcAmount, setDepositUsdcAmount] = useState("")
+  const [depositZetaAmount, setDepositZetaAmount] = useState("")
+  const [orderTargetPrice, setOrderTargetPrice] = useState("")
+  const [orderSlippage, setOrderSlippage] = useState("")
+
+  // New states for withdrawal actions
+  const [withdrawUsdcAmount, setWithdrawUsdcAmount] = useState("")
+  const [withdrawZetaAmount, setWithdrawZetaAmount] = useState("")
+
+  // New state for cancelling orders
+  const [cancelOrderId, setCancelOrderId] = useState("")
+
+  // State for market price data
+  const [zetaPrice, setZetaPrice] = useState<bigint | null>(null)
+  const [priceTimestamp, setPriceTimestamp] = useState<bigint | null>(null)
+
+  // Wallet connection details
+  const { address, chainId } = useAccount()
+
+  // Write contract hooks
+  const { writeContract: writeDepositUsdc } = useWriteContract()
+  const { writeContract: writeDepositZeta } = useWriteContract()
+  const { writeContract: writeCreateSellOrder } = useWriteContract()
+  const { writeContract: writeCreateBuyOrder } = useWriteContract()
+  const { writeContract: writeWithdrawUsdc } = useWriteContract()
+  const { writeContract: writeWithdrawZeta } = useWriteContract()
+  const { writeContract: writeCancelOrder } = useWriteContract()
+
+  const { data: zetaPriceData, refetch: refetchPrice } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "getZetaPrice",
+    chainId,
+  })
+  
+  useEffect(() => {
+    if (zetaPriceData) {      
+      const [price, timestamp] = zetaPriceData as [bigint, bigint]
+      setZetaPrice(price)
+      setPriceTimestamp(timestamp)
+    }
+  }, [zetaPriceData])
+  
+
+  // Deposit functions
+  const handleDepositUsdc = () => {
+    writeDepositUsdc({
+      chainId,
+      address: zetaOrderBookAddress,
+      abi: zetaOrderBookABI,
+      functionName: "depositUsdc",
+      args: [depositUsdcAmount ? parseInt(depositUsdcAmount) : 0],
+    })
+  }
+
+  const handleDepositZeta = () => {
+    writeDepositZeta({
+      chainId,
+      address: zetaOrderBookAddress,
+      abi: zetaOrderBookABI,
+      functionName: "depositZeta",
+      value: depositZetaAmount ? BigInt(depositZetaAmount) : BigInt(0),
+    })
+  }
+
+  // Order functions
+  const handleCreateSellOrder = () => {
+    writeCreateSellOrder({
+      chainId,
+      address: zetaOrderBookAddress,
+      abi: zetaOrderBookABI,
+      functionName: "createSellOrder",
+      args: [
+        orderTargetPrice ? parseInt(orderTargetPrice) : 0,
+        orderSlippage ? parseInt(orderSlippage) : 0,
+      ],
+    })
+  }
+
+  const handleCreateBuyOrder = () => {
+    writeCreateBuyOrder({
+      chainId,
+      address: zetaOrderBookAddress,
+      abi: zetaOrderBookABI,
+      functionName: "createBuyOrder",
+      args: [
+        amount ? parseInt(amount) : 0,
+        orderTargetPrice ? parseInt(orderTargetPrice) : 0,
+        orderSlippage ? parseInt(orderSlippage) : 0,
+      ],
+    })
+  }
+
+  // Withdrawal functions
+  const handleWithdrawUsdc = () => {
+    writeWithdrawUsdc({
+      chainId,
+      address: zetaOrderBookAddress,
+      abi: zetaOrderBookABI,
+      functionName: "withdrawUsdc",
+      args: [withdrawUsdcAmount ? parseInt(withdrawUsdcAmount) : 0],
+    })
+  }
+
+  const handleWithdrawZeta = () => {
+    writeWithdrawZeta({
+      chainId,
+      address: zetaOrderBookAddress,
+      abi: zetaOrderBookABI,
+      functionName: "withdrawZeta",
+      args: [withdrawZetaAmount ? parseInt(withdrawZetaAmount) : 0],
+    })
+  }
+
+  // Cancel order function
+  const handleCancelOrder = () => {
+    writeCancelOrder({
+      chainId,
+      address: zetaOrderBookAddress,
+      abi: zetaOrderBookABI,
+      functionName: "cancelOrder",
+      args: [cancelOrderId ? parseInt(cancelOrderId) : 0],
+    })
+  }
+
+  // Manual refresh for market price
+  const refreshPrice = () => {
+    refetchPrice()
+  }
 
   return (
     <section className="w-full py-12 md:py-24 lg:py-32 bg-base-100">
       <div className="container px-4 md:px-6">
+        {/* Header */}
         <motion.div
           className="flex flex-col items-center justify-center space-y-4 text-center mb-12"
           initial={{ opacity: 0, y: 20 }}
@@ -30,7 +171,9 @@ export function TradingPage() {
             <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-content">
               ZetaHopper Trading
             </div>
-            <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-base-content">Start Trading Now</h1>
+            <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-base-content">
+              Start Trading Now
+            </h1>
             <p className="max-w-[900px] text-base-content/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
               Set your parameters and let ZetaHopper&apos;s advanced algorithms maximize your returns on Zetachain.
             </p>
@@ -38,201 +181,144 @@ export function TradingPage() {
         </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Trading Form */}
+          {/* {/* Trading Form */}
           <motion.div
             className="lg:col-span-2"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card className="bg-base-200 border-base-300">
-              <CardHeader>
-                <CardTitle className="text-base-content">Trading Parameters</CardTitle>
-                <CardDescription className="text-base-content/70">
-                  Configure your trading settings below
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="basic" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 bg-base-300">
-                    <TabsTrigger
-                      value="basic"
-                      className="text-base-content data-[state=active]:bg-primary data-[state=active]:text-primary-content"
-                    >
-                      Basic
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="advanced"
-                      className="text-base-content data-[state=active]:bg-primary data-[state=active]:text-primary-content"
-                    >
-                      Advanced
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="basic" className="space-y-6 pt-6">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="token" className="text-base-content">
-                          Select Token
-                        </Label>
-                        <Select defaultValue="zeta">
-                          <SelectTrigger className="w-full bg-base-100 border-base-300 text-base-content">
-                            <SelectValue placeholder="Select token" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-base-200 border-base-300 text-base-content">
-                            <SelectItem value="zeta">ZETA</SelectItem>
-                            <SelectItem value="eth">ETH</SelectItem>
-                            <SelectItem value="btc">BTC</SelectItem>
-                            <SelectItem value="usdc">USDC</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="amount" className="text-base-content">
-                          Trading Amount
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="amount"
-                            placeholder="Enter amount"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full bg-base-100 border-base-300 text-base-content pr-16"
-                          />
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-base-content/70">
-                            USDC
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="risk" className="text-base-content">
-                            Risk Level
-                          </Label>
-                          <span className="text-sm text-base-content/70">{riskLevel}%</span>
-                        </div>
-                        <Slider
-                          id="risk"
-                          defaultValue={[50]}
-                          max={100}
-                          step={1}
-                          onValueChange={(value) => setRiskLevel(value[0])}
-                          className="py-2"
-                        />
-                        <div className="flex justify-between text-xs text-base-content/70">
-                          <span>Conservative</span>
-                          <span>Balanced</span>
-                          <span>Aggressive</span>
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-info/10 p-3 text-sm text-info flex items-start">
-                        <Info className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                        <span>
-                          ZetaHopper will automatically optimize your trading strategy based on market conditions and
-                          your risk preference.
-                        </span>
-                      </div>
-                    </div>
-                    <ConnectButton.Custom>
-                      {({ account, openConnectModal }) => (
-                        <Button
-                          className="w-full bg-primary text-primary-content hover:bg-primary/90"
-                          onClick={!account ? openConnectModal : undefined}
-                        >
-                          <Wallet className="mr-2 h-4 w-4" />
-                          {account ? "Start" : "Connect Wallet to Start"}
-                        </Button>
-                      )}
-                    </ConnectButton.Custom>
-                  </TabsContent>
-                  <TabsContent value="advanced" className="space-y-6 pt-6">
-                    <div className="space-y-4">
-                      {/* <div className="space-y-2">
-                        <Label htmlFor="strategy" className="text-base-content">
-                          Trading Strategy
-                        </Label>
-                        <Select defaultValue="momentum">
-                          <SelectTrigger className="w-full bg-base-100 border-base-300 text-base-content">
-                            <SelectValue placeholder="Select strategy" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-base-200 border-base-300 text-base-content">
-                            <SelectItem value="momentum">Momentum</SelectItem>
-                            <SelectItem value="mean-reversion">Mean Reversion</SelectItem>
-                            <SelectItem value="breakout">Breakout</SelectItem>
-                            <SelectItem value="grid">Grid Trading</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div> */}
-                      <div className="space-y-2">
-                        <Label htmlFor="timeframe" className="text-base-content">
-                          Timeframe
-                        </Label>
-                        <Select defaultValue="1h">
-                          <SelectTrigger className="w-full bg-base-100 border-base-300 text-base-content">
-                            <SelectValue placeholder="Select timeframe" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-base-200 border-base-300 text-base-content">
-                            <SelectItem value="5m">5 minutes</SelectItem>
-                            <SelectItem value="15m">15 minutes</SelectItem>
-                            <SelectItem value="1h">1 hour</SelectItem>
-                            <SelectItem value="4h">4 hours</SelectItem>
-                            <SelectItem value="1d">1 day</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {/* <div className="space-y-2">
-                        <Label htmlFor="leverage" className="text-base-content">
-                          Leverage
-                        </Label>
-                        <Select defaultValue="1">
-                          <SelectTrigger className="w-full bg-base-100 border-base-300 text-base-content">
-                            <SelectValue placeholder="Select leverage" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-base-200 border-base-300 text-base-content">
-                            <SelectItem value="1">1x (No Leverage)</SelectItem>
-                            <SelectItem value="2">2x</SelectItem>
-                            <SelectItem value="5">5x</SelectItem>
-                            <SelectItem value="10">10x</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div> */}
-                      <div className="space-y-2">
-                        <Label htmlFor="stop-loss" className="text-base-content">
-                          Stop Loss (%)
-                        </Label>
-                        <Input
-                          id="stop-loss"
-                          placeholder="Enter stop loss percentage"
-                          defaultValue="5"
-                          className="w-full bg-base-100 border-base-300 text-base-content"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="take-profit" className="text-base-content">
-                          Take Profit (%)
-                        </Label>
-                        <Input
-                          id="take-profit"
-                          placeholder="Enter take profit percentage"
-                          defaultValue="15"
-                          className="w-full bg-base-100 border-base-300 text-base-content"
-                        />
-                      </div>
-                      <div className="rounded-lg bg-warning/10 p-3 text-sm text-warning flex items-start">
-                        <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                        <span>
-                          Advanced settings are recommended for experienced traders. Higher leverage increases both
-                          potential returns and risks.
-                        </span>
-                      </div>
-                    </div>
-                    <Button className="w-full bg-primary text-primary-content hover:bg-primary/90">
-                      <Wallet className="mr-2 h-4 w-4" /> Connect Wallet to Start
-                    </Button>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </motion.div>
+          >           
+        <section className="mt-8">
+          <Card className="bg-base-200 border-base-300">
+            <CardHeader>
+              <CardTitle className="text-base-content">Smart Contract Actions</CardTitle>
+              <CardDescription className="text-base-content/70">
+                Interact with ZetaOrderBook contract
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Deposit Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deposit-usdc" className="text-base-content">
+                    Deposit USDC
+                  </Label>
+                  <Input
+                    id="deposit-usdc"
+                    placeholder="Enter USDC amount (in smallest unit)"
+                    value={depositUsdcAmount}
+                    onChange={(e) => setDepositUsdcAmount(e.target.value)}
+                    className="bg-base-100 border-base-300 text-base-content"
+                  />
+                  <Button onClick={handleDepositUsdc} className="bg-primary text-primary-content hover:bg-primary/90">
+                    Deposit USDC
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deposit-zeta" className="text-base-content">
+                    Deposit ZETA
+                  </Label>
+                  <Input
+                    id="deposit-zeta"
+                    placeholder="Enter ZETA amount (in ETH)"
+                    value={depositZetaAmount}
+                    onChange={(e) => setDepositZetaAmount(e.target.value)}
+                    className="bg-base-100 border-base-300 text-base-content"
+                  />
+                  <Button onClick={handleDepositZeta} className="bg-primary text-primary-content hover:bg-primary/90">
+                    Deposit ZETA
+                  </Button>
+                </div>
+              </div>
+              {/* Order Parameters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="order-target-price" className="text-base-content">
+                    Target Price (USDC, 6 decimals)
+                  </Label>
+                  <Input
+                    id="order-target-price"
+                    placeholder="e.g., 1240000 for $1.24"
+                    value={orderTargetPrice}
+                    onChange={(e) => setOrderTargetPrice(e.target.value)}
+                    className="bg-base-100 border-base-300 text-base-content"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="order-slippage" className="text-base-content">
+                    Slippage (bps)
+                  </Label>
+                  <Input
+                    id="order-slippage"
+                    placeholder="e.g., 50 for 0.5%"
+                    value={orderSlippage}
+                    onChange={(e) => setOrderSlippage(e.target.value)}
+                    className="bg-base-100 border-base-300 text-base-content"
+                  />
+                </div>
+              </div>
+              {/* Order Action Buttons */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button onClick={handleCreateSellOrder} className="bg-primary text-primary-content hover:bg-primary/90">
+                  Create Sell Order
+                </Button>
+                <Button onClick={handleCreateBuyOrder} className="bg-primary text-primary-content hover:bg-primary/90">
+                  Create Buy Order
+                </Button>
+              </div>
+              {/* Withdraw Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="withdraw-usdc" className="text-base-content">
+                    Withdraw USDC
+                  </Label>
+                  <Input
+                    id="withdraw-usdc"
+                    placeholder="Enter USDC amount (in smallest unit)"
+                    value={withdrawUsdcAmount}
+                    onChange={(e) => setWithdrawUsdcAmount(e.target.value)}
+                    className="bg-base-100 border-base-300 text-base-content"
+                  />
+                  <Button onClick={handleWithdrawUsdc} className="bg-primary text-primary-content hover:bg-primary/90">
+                    Withdraw USDC
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="withdraw-zeta" className="text-base-content">
+                    Withdraw ZETA
+                  </Label>
+                  <Input
+                    id="withdraw-zeta"
+                    placeholder="Enter ZETA amount (in smallest unit)"
+                    value={withdrawZetaAmount}
+                    onChange={(e) => setWithdrawZetaAmount(e.target.value)}
+                    className="bg-base-100 border-base-300 text-base-content"
+                  />
+                  <Button onClick={handleWithdrawZeta} className="bg-primary text-primary-content hover:bg-primary/90">
+                    Withdraw ZETA
+                  </Button>
+                </div>
+              </div>
+              {/* Cancel Order */}
+              <div className="space-y-2">
+                <Label htmlFor="cancel-order" className="text-base-content">
+                  Cancel Order (Enter Order ID)
+                </Label>
+                <Input
+                  id="cancel-order"
+                  placeholder="Enter Order ID"
+                  value={cancelOrderId}
+                  onChange={(e) => setCancelOrderId(e.target.value)}
+                  className="bg-base-100 border-base-300 text-base-content"
+                />
+                <Button onClick={handleCancelOrder} className="bg-primary text-primary-content hover:bg-primary/90">
+                  Cancel Order
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+          </motion.div> 
 
           {/* Stats and Info */}
           <motion.div
@@ -255,9 +341,17 @@ export function TradingPage() {
                       <span className="text-base-content">ZETA Price</span>
                     </div>
                     <div className="text-base-content font-medium">
-                      $1.24 <span className="text-success text-xs">+2.4%</span>
+                      {zetaPrice ? `$${(Number(zetaPrice) / 1e6).toFixed(6)}` : "$--.--"}
+                      {priceTimestamp && (
+                        <span className="ml-2 text-xs text-base-content/70">
+                          (Updated: {new Date(Number(priceTimestamp) * 1000).toLocaleTimeString()})
+                        </span>
+                      )}
                     </div>
                   </div>
+                  <Button size="sm" variant="outline" onClick={refreshPrice}>
+                    Refresh Price
+                  </Button>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Clock className="h-5 w-5 text-primary" />
@@ -308,7 +402,7 @@ export function TradingPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>         
+            </Card>
           </motion.div>
         </div>
 
@@ -316,8 +410,9 @@ export function TradingPage() {
         <div className="mt-8">
           <RecentTrades />
         </div>
+
+        
       </div>
     </section>
   )
 }
-

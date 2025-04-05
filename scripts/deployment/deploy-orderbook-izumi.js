@@ -252,7 +252,7 @@ async function main() {
             "0x02F55D53DcE23B4AA962CC68b0f685f26143Bdb2", // Swap (Izumi)
             network === 'testnet' 
                 ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" 
-                : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a", // USDC.ETH
+                : "0x7c8dDa80bbBE1254a7aACf3219EBe1481c6E01d7", // USDT.ETH // : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a", // USDC.ETH
             network === 'testnet'
                 ? "0x236b0DE675cC8F46AE186897fCCeFe3370C9eDeD"  // Testnet ETH.BASE ZRC20
                 : "0x1de70f3e971B62A0707dA18100392af14f7fB677", // Destination Network Gas Token (Mainnet ETH.BASE ZRC20)

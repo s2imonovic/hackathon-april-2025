@@ -30,7 +30,7 @@ BLOCKSCOUT_API_KEY=your_blockscout_api_key_here
 
 1. Deploy to both networks using the deployment script:
 ```bash
-./scripts/deployment/deploy-testnet.sh
+./scripts/deployment/deploy-mainnet-izumi.sh
 ```
 
 This script will:

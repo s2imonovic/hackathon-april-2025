@@ -296,42 +296,7 @@ async function main() {
         
         console.log("\n🚀 Deploying ZetaOrderBookIzumi...");
         try {
-            // // First try to estimate gas
-            // console.log("⛽ Estimating gas...");
-            // const deployTx = ZetaOrderBook.getDeployTransaction(...deploymentParams);
-            // const gasEstimate = await hre.ethers.provider.estimateGas(deployTx);
-            // console.log(`⛽ Estimated gas: ${gasEstimate.toString()}`);
-            
-            // // Use a much higher gas limit for mainnet
-            // const gasLimit = network === 'mainnet'
-            //     ? gasEstimate * 5n // 5x multiplier for mainnet
-            //     : gasEstimate * 12n / 10n; // 20% buffer for testnet
-            
-            // console.log(`⛽ Using gas limit: ${gasLimit.toString()}`);
-            
-            // // Get the signer from the provider
-            // const signer = await hre.ethers.provider.getSigner();
-            // if (!signer || !signer.address) {
-            //     throw new Error("Failed to get signer. Please check your hardhat configuration and private key setup.");
-            // }
-            // console.log("🔑 Using signer address:", signer.address);
-            
-            // // Construct deployment transaction with all parameters
-            // const deploymentTx = {
-            //     ...deployTx,
-            //     gasLimit: gasLimit,
-            //     gasPrice: finalGasPrice,
-            //     nonce: await hre.ethers.provider.getTransactionCount(signer.address)
-            // };
-            
-            // console.log("\n📝 Deployment transaction details:");
-            // console.log("Gas Limit:", deploymentTx.gasLimit.toString());
-            // console.log("Gas Price:", deploymentTx.gasPrice.toString());
-            // console.log("Nonce:", deploymentTx.nonce);
-            // console.log("From:", signer.address);
-            // console.log("Data Length:", deploymentTx.data?.length || 0);
-            
-            // Deploy using the signer
+            // Deploy
             const zetaOrderBook = await ZetaOrderBook.deploy(
                 ...deploymentParams,
                 {
@@ -339,9 +304,7 @@ async function main() {
                 }
             );
             
-            // const zetaOrderBook = await signer.sendTransaction(deploymentTx);
             console.log("⏳ Waiting for deployment confirmation...");
-            // await zetaOrderBook.wait();
 
             // Wait for deployment confirmation and get the contract address
             await zetaOrderBook.waitForDeployment();

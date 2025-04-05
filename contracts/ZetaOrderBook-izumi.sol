@@ -678,7 +678,7 @@ contract ZetaOrderBookIzumi is UniversalContract, OrderManager {
         (address gasZRC20, uint256 gasFee) = IZRC20(zrc20Eth).withdrawGasFeeWithGasLimit(callOptions.gasLimit);
 
         // Approve gateway to spend gas fee
-        IZRC20(gasZRC20).approve(address(gateway), gasFee);
+        IZRC20(gasZRC20).approve(address(gateway), gasFee); // TODO: Optimize gas by authorizing once if safe.
 
         try gateway.call(
             callbackAddress,

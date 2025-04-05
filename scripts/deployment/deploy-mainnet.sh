@@ -8,7 +8,8 @@ extract_address() {
 }
 
 echo "🚀 Starting deployment to Base mainnet..."
-BASE_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network base 2>&1)
+BASE_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network base)
+echo $BASE_OUTPUT
 BASE_STATUS=$?
 
 if [ $BASE_STATUS -ne 0 ]; then
@@ -17,11 +18,12 @@ if [ $BASE_STATUS -ne 0 ]; then
     exit 1
 fi
 
-CALLBACK_CONNECTOR_ADDRESS=$(extract_address "$BASE_OUTPUT" "CallbackConnector deployed to Base mainnet:")
+CALLBACK_CONNECTOR_ADDRESS=$(extract_address "$BASE_OUTPUT" "CallbackConnector deployed to base:")
 echo "✅ Base mainnet deployment complete"
 
 echo "🚀 Starting deployment to ZetaChain mainnet..."
-MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network mainnet 2>&1)
+MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network mainnet)
+echo $MAINNET_OUTPUT
 MAINNET_STATUS=$?
 
 if [ $MAINNET_STATUS -ne 0 ]; then
@@ -34,7 +36,7 @@ ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "ZetaOrderBook deploy
 echo "✅ ZetaChain mainnet deployment complete"
 
 echo "🚀 Setting universal contract address on Base mainnet..."
-SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract.js --network base 2>&1)
+SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract.js --network base)
 SET_UNIVERSAL_STATUS=$?
 
 if [ $SET_UNIVERSAL_STATUS -ne 0 ]; then

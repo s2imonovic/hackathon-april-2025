@@ -4,5 +4,11 @@
     },
     "testnet": {
         "ZetaOrderBook": "0xdF0e05429AE89dae2F33f8914D91acDa621ae643"
+    },
+    "base": {
+        "CallbackConnector": "0x4cb1DdAB95018DDF291D3A1D4d6EfFB1F5E9082d"
+    },
+    "mainnet": {
+        "ZetaOrderBook": "0x08d92E1BA9F0963bC03019245749cfee8cE99907"
     }
 }

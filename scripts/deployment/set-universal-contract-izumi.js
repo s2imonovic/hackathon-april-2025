@@ -34,30 +34,6 @@ async function main() {
     });
     await tx.wait();
     console.log("✅ Universal contract address set successfully");
-
-    // We do not approve ZETA on BASE from the deployer address, because it is the contract that should spend its own funds.
-    // const BASE_ZETA_ADDRESS = "0x7FB8E2aE4A5923BBd8e1513945914b5AB69cdA2a";
-    // const zetaToken = await hre.ethers.getContractAt("IERC20", BASE_ZETA_ADDRESS);
-    
-    // // Check ZETA balance
-    // const zetaAmount = hre.ethers.utils.parseEther("0.5");
-    // const zetaBalance = await zetaToken.balanceOf(await hre.ethers.provider.getSigner().getAddress());
-    // console.log(`💰 ZETA balance on BASE: ${hre.ethers.utils.formatEther(zetaBalance)} ZETA`);
-    
-    // console.log("\n🚀 Approve ZETA gas fees on BASE...");
-    // const approveTx = await zetaToken.approve(callbackConnectorAddress, zetaAmount, {
-    //     gasPrice: finalGasPrice
-    // });
-    // await approveTx.wait();
-    // console.log("✅ ZETA approval on BASE successful");
-
-    // const transferTx = await zetaToken.transfer(callbackConnectorAddress, zetaAmount, {
-    //     gasPrice: finalGasPrice
-    // });
-    // await transferTx.wait();
-    // console.log("✅ ZETA transfer successful");
-
-    console.log("\n✨ All setup complete!");
 }
 
 main()

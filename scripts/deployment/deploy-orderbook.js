@@ -138,7 +138,7 @@ async function main() {
         const pythOracleAddress = network === 'testnet' 
             ? "0x0708325268dF9F66270F1401206434524814508b"
             : "0x2880aB155794e7179c9eE2e38200202908C17B43";
-        const uniswapV2RouterAddress = "0x2ca7d64A7EFE2D62A725E2B35Cf7230D6677FfEe"; // gas stability pools
+        const swapGateway = "0xCad412df586F187E0D303dD8C5f3603d4c350B5f" // this is actually the Beam NativeSwapRouter. UniswapV2RouterAddress is "0x2ca7d64A7EFE2D62A725E2B35Cf7230D6677FfEe"; // gas stability pools
         const tradePairAddress = network === 'testnet' 
             ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" // USDC.SEP
             : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a"; // USDC.ETH
@@ -152,7 +152,7 @@ async function main() {
         const constructorArgs = [
             gatewayAddress, // ZetaChain Gateway
             pythOracleAddress, // Pyth Oracle
-            uniswapV2RouterAddress, // UniswapV2 Router
+            swapGateway, // Swap Gateway, NOT UniswapV2 Router anymore
             tradePairAddress, // USDC.SEP or USDC.ETH
             zetaPriceId, // ZETA price ID
             baseGatewayAddress, // Base Gateway

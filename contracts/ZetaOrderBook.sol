@@ -8,37 +8,44 @@ import "@zetachain/protocol-contracts/contracts/zevm/GatewayZEVM.sol";
 import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IZRC20.sol";
 import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// Simple interface for ZetaSwap
-interface IZetaSwap {
-    function swapExactTokensForTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external returns (uint256[] memory amounts);
+// Replace IZetaSwap with these interfaces
+interface ISwapRouter {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 limitSqrtPrice;
+    }
 
-    function swapExactETHForTokens(
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external payable returns (uint256[] memory amounts);
+    struct ExactInputParams {
+        bytes path;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+    }
 
-    function swapExactTokensForETH(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external returns (uint256[] memory amounts);
+    function exactInputSingle(ExactInputSingleParams calldata params) external returns (uint256 amountOut);
+    function exactInput(ExactInputParams calldata params) external returns (uint256 amountOut);
+}
+
+interface INativeSwapRouter {
+    function wrapExactInputSingle(ISwapRouter.ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+    function unwrapExactInputSingle(ISwapRouter.ExactInputSingleParams calldata params) external returns (uint256 amountOut);
 }
 
 contract ZetaOrderBook is UniversalContract {
+    using SafeERC20 for IERC20;
+    
     GatewayZEVM public immutable gateway;
     IPyth public immutable pythOracle;
-    IZetaSwap public swapRouter;
+    INativeSwapRouter public swapRouter;
 
     // USDC token address
     address public usdcToken;
@@ -93,6 +100,7 @@ contract ZetaOrderBook is UniversalContract {
     error PriceCheckFailed();
     error OrderNotActive();
     error InsufficientFunds();
+    error SlippageExceeded(uint256 expectedAmount, uint256 receivedAmount, uint256 slippageBps);
 
     modifier onlyGateway() {
         if (msg.sender != address(gateway)) revert Unauthorized();
@@ -115,14 +123,11 @@ contract ZetaOrderBook is UniversalContract {
     ) {
         gateway = GatewayZEVM(gatewayAddress);
         pythOracle = IPyth(pythOracleAddress);
-        swapRouter = IZetaSwap(swapRouterAddress);
+        swapRouter = INativeSwapRouter(swapRouterAddress);
         usdcToken = _usdcToken;
         zetaPriceId = _zetaPriceId;
         callbackChain = _callbackChain;
         callbackAddress = _callbackAddress;
-
-        // Approve USDC for the router
-        IZRC20(usdcToken).approve(address(swapRouter), type(uint256).max);
     }
 
     // Get latest ZETA price from Pyth
@@ -306,31 +311,29 @@ contract ZetaOrderBook is UniversalContract {
             // Calculate minimum USDC output based on order price and slippage
             uint256 minUsdcOutput = (order.amount * order.price * (10000 - order.slippage)) / (1e6 * 10000);
 
-            // Path for swap
-            address[] memory path = new address[](2);
-            path[0] = address(0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf); // WZETA
-            path[1] = usdcToken;
+            // Create params for wrapExactInputSingle
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                tokenIn: address(0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf), // WZETA
+                tokenOut: usdcToken,
+                recipient: address(this),
+                deadline: block.timestamp + 15 minutes,
+                amountIn: order.amount,
+                amountOutMinimum: minUsdcOutput,
+                limitSqrtPrice: 0
+            });
 
-            // Ensure contract has enough native ZETA
-            if (address(this).balance < order.amount) {
-                order.active = true;
-                revert InsufficientFunds();
-            }
-
-            try swapRouter.swapExactETHForTokens{value: order.amount}(
-                minUsdcOutput,
-                path,
-                address(this),
-                block.timestamp + 15 minutes
-            ) returns (uint256[] memory amounts) {
+            try swapRouter.wrapExactInputSingle{value: order.amount}(params) returns (uint256 amountOut) {
+                if (amountOut < minUsdcOutput) {
+                    revert SlippageExceeded(minUsdcOutput, amountOut, order.slippage);
+                }
                 // Add USDC to user's balance and contract's balance
-                userUsdcBalance[order.owner] += amounts[1];
-                contractUsdcBalance += amounts[1];
-                emit SwapCompleted(address(0), usdcToken, order.amount, amounts[1]);
+                userUsdcBalance[order.owner] += amountOut;
+                contractUsdcBalance += amountOut;
+                emit SwapCompleted(address(0), usdcToken, order.amount, amountOut);
             } catch {
-                // If swap fails, return ZETA to user's balance and restore order
+                // If swap fails, return ZETA to user's balance
                 userZetaBalance[order.owner] += order.amount;
-                order.active = true;
+                contractZetaBalance += order.amount;
                 revert SwapFailed();
             }
         } else {
@@ -341,26 +344,35 @@ contract ZetaOrderBook is UniversalContract {
             // Calculate minimum ZETA output based on slippage
             uint256 minZetaOutput = (order.amount * (10000 - order.slippage)) / 10000;
 
-            // Path for swap
-            address[] memory path = new address[](2);
-            path[0] = usdcToken;
-            path[1] = address(0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf); // WZETA
+            // Approve router
+            IERC20(usdcToken).approve(address(swapRouter), usdcAmount);
 
-            try swapRouter.swapExactTokensForETH(
-                usdcAmount,
-                minZetaOutput,
-                path,
-                address(this),
-                block.timestamp + 15 minutes
-            ) returns (uint256[] memory amounts) {
+            // Create params for unwrapExactInputSingle
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                tokenIn: usdcToken,
+                tokenOut: address(0x5F0b1a82749cb4E2278EC87F8BF6B618dC71a8bf), // WZETA
+                recipient: address(this),
+                deadline: block.timestamp + 15 minutes,
+                amountIn: usdcAmount,
+                amountOutMinimum: minZetaOutput,
+                limitSqrtPrice: 0
+            });
+
+            try swapRouter.unwrapExactInputSingle(params) returns (uint256 amountOut) {
+                if (amountOut < minZetaOutput) {
+                    IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
+                    revert SlippageExceeded(minZetaOutput, amountOut, order.slippage);
+                }
                 // Add ZETA to user's balance and contract's balance
-                userZetaBalance[order.owner] += amounts[1];
-                contractZetaBalance += amounts[1];
-                emit SwapCompleted(usdcToken, address(0), usdcAmount, amounts[1]);
+                userZetaBalance[order.owner] += amountOut;
+                contractZetaBalance += amountOut;
+                IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
+                emit SwapCompleted(usdcToken, address(0), usdcAmount, amountOut);
             } catch {
-                // If swap fails, return USDC to user's balance and restore order
+                // If swap fails, return USDC to user's balance
                 userUsdcBalance[order.owner] += usdcAmount;
-                order.active = true;
+                contractUsdcBalance += usdcAmount;
+                IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
                 revert SwapFailed();
             }
         }
@@ -390,14 +402,6 @@ contract ZetaOrderBook is UniversalContract {
             "priceCheckCallback(uint256)",
             orderId
         );
-
-        (, uint256 gasFee) = IZRC20(usdcToken).withdrawGasFeeWithGasLimit(
-            callOptions.gasLimit
-        );
-        if (!IZRC20(usdcToken).transferFrom(msg.sender, address(this), gasFee)) {
-            revert TransferFailed();
-        }
-        IZRC20(usdcToken).approve(address(gateway), gasFee);
 
         // Call the external contract to trigger the loop
         try gateway.call(

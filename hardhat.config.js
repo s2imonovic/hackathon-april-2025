@@ -105,6 +105,6 @@ module.exports = {
   tenderly: {
     project: process.env.TENDERLY_PROJECT || "",
     username: process.env.TENDERLY_USERNAME || "",
-    privateVerification: false
+    privateVerification: true
   }
 }

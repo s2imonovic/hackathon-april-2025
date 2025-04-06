@@ -119,7 +119,8 @@ contract ZetaOrderBook is UniversalContract {
         address _usdcToken,
         bytes32 _zetaPriceId,
         address _callbackChain,
-        bytes memory _callbackAddress
+        bytes memory _callbackAddress,
+        address _connectedGasZRC20
     ) {
         gateway = GatewayZEVM(gatewayAddress);
         pythOracle = IPyth(pythOracleAddress);
@@ -128,6 +129,12 @@ contract ZetaOrderBook is UniversalContract {
         zetaPriceId = _zetaPriceId;
         callbackChain = _callbackChain;
         callbackAddress = _callbackAddress;
+        
+        // Approve gateway to spend ETH.BASE for gas fees for loop function
+        IZRC20(_connectedGasZRC20).approve(
+            address(gateway),
+            type(uint256).max
+        );
     }
 
     // Get latest ZETA price from Pyth
@@ -302,9 +309,7 @@ contract ZetaOrderBook is UniversalContract {
     // Execute an order
     function executeOrder(uint256 orderId, uint256 executionPrice) internal {
         Order storage order = orders[orderId];
-
-        // Mark order as inactive
-        order.active = false;
+        order.active = false;  // Mark inactive before swap attempt
 
         if (order.orderType == OrderType.SELL) {
             // SELL Order: Swap native ZETA for USDC
@@ -324,9 +329,10 @@ contract ZetaOrderBook is UniversalContract {
 
             try swapRouter.wrapExactInputSingle{value: order.amount}(params) returns (uint256 amountOut) {
                 if (amountOut < minUsdcOutput) {
-                    revert SlippageExceeded(minUsdcOutput, amountOut, order.slippage);
+                    order.active = true;
+                    triggerPriceCheckLoop(orderId);
+                    return;  // Exit without reverting
                 }
-                // Add USDC to user's balance and contract's balance
                 userUsdcBalance[order.owner] += amountOut;
                 contractUsdcBalance += amountOut;
                 emit SwapCompleted(address(0), usdcToken, order.amount, amountOut);
@@ -334,7 +340,9 @@ contract ZetaOrderBook is UniversalContract {
                 // If swap fails, return ZETA to user's balance
                 userZetaBalance[order.owner] += order.amount;
                 contractZetaBalance += order.amount;
-                revert SwapFailed();
+                order.active = true;
+                triggerPriceCheckLoop(orderId);
+                return;  // Exit without reverting
             }
         } else {
             // BUY Order: Swap USDC for native ZETA
@@ -361,9 +369,10 @@ contract ZetaOrderBook is UniversalContract {
             try swapRouter.unwrapExactInputSingle(params) returns (uint256 amountOut) {
                 if (amountOut < minZetaOutput) {
                     IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
-                    revert SlippageExceeded(minZetaOutput, amountOut, order.slippage);
+                    order.active = true;
+                    triggerPriceCheckLoop(orderId);
+                    return;  // Exit without reverting
                 }
-                // Add ZETA to user's balance and contract's balance
                 userZetaBalance[order.owner] += amountOut;
                 contractZetaBalance += amountOut;
                 IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
@@ -373,7 +382,9 @@ contract ZetaOrderBook is UniversalContract {
                 userUsdcBalance[order.owner] += usdcAmount;
                 contractUsdcBalance += usdcAmount;
                 IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
-                revert SwapFailed();
+                order.active = true;  // Set back to active
+                triggerPriceCheckLoop(orderId);
+                return;  // Exit without reverting
             }
         }
 

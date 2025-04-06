@@ -358,6 +358,9 @@ contract ZetaOrderBook is UniversalContract {
         // Get current ZETA price
         (uint256 currentPrice, ) = getZetaPrice();
 
+        // Adjust current price to match USDC decimals
+        currentPrice = currentPrice / 100;
+
         bool conditionsMet = false;
 
         // Check conditions based on order type
@@ -389,7 +392,7 @@ contract ZetaOrderBook is UniversalContract {
         if (order.orderType == OrderType.SELL) {
             // SELL Order: Swap native ZETA for USDC
             // Calculate minimum USDC output based on order price and slippage
-            uint256 minUsdcOutput = (order.amount * order.priceHigh * (10000 - order.slippage)) / (1e6 * 10000);
+            uint256 minUsdcOutput = (order.amount * order.priceLow * (10000 - order.slippage)) / (10000 * 1e6);
 
             // Create params for wrapExactInputSingle
             ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
@@ -429,7 +432,7 @@ contract ZetaOrderBook is UniversalContract {
             uint256 usdcAmount = (order.amount * order.priceLow) / 1e6; // TODO: Ensure there are no rounding errors
             
             // Calculate minimum ZETA output based on slippage
-            uint256 minZetaOutput = (order.amount * (10000 - order.slippage)) / 10000;
+            uint256 minZetaOutput = (usdcAmount * (10000 - order.slippage)) / 10000;
 
             // Approve router
             IERC20(usdcToken).approve(address(swapRouter), usdcAmount);

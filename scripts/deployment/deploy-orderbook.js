@@ -147,6 +147,7 @@ async function main() {
             ? "0xc0B74d761ef4EC9e9473f65687d36B9F13DB0dCc" // Base Sepolia Connector
             : "0x48B9AACC350b20147001f88821d31731Ba4C30ed"; // Base Gateway
         const connectedGasZRC20 = "0x1de70f3e971B62A0707dA18100392af14f7fB677"; // ETH.BASE token address
+        const ownerAddress = "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"; // Contract owner
 
         // Deploy ZetaOrderBook to ZetaChain testnet
         const ZetaOrderBook = await hre.ethers.getContractFactory("ZetaOrderBook");
@@ -158,7 +159,8 @@ async function main() {
             zetaPriceId, // ZETA price ID
             baseGatewayAddress, // Base Gateway
             callbackConnectorAddress, // Deployed callback connector address
-            connectedGasZRC20 // ETH.BASE token address for gas fees when reflecting off of Base
+            connectedGasZRC20, // ETH.BASE token address for gas fees when reflecting off of Base
+            ownerAddress // Contract owner
         ];
 
         const zetaOrderBook = await ZetaOrderBook.deploy(

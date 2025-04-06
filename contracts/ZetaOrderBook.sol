@@ -58,6 +58,13 @@ contract ZetaOrderBook is UniversalContract {
     // Contract balances
     uint256 public contractZetaBalance;
     uint256 public contractUsdcBalance;
+    uint256 public contractConnectedGasBalance;  // Balance of connected gas token (ETH.BASE)
+
+    // Connected gas token address
+    address public immutable connectedGasZRC20;
+
+    // Contract owner
+    address public owner;
 
     enum OrderType { BUY, SELL }
 
@@ -92,6 +99,7 @@ contract ZetaOrderBook is UniversalContract {
     event HelloEvent(string, string);
     event RevertEvent(string, RevertContext);
     event AbortEvent(string, AbortContext);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     error TransferFailed();
     error Unauthorized();
@@ -101,6 +109,11 @@ contract ZetaOrderBook is UniversalContract {
     error OrderNotActive();
     error InsufficientFunds();
     error SlippageExceeded(uint256 expectedAmount, uint256 receivedAmount, uint256 slippageBps);
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert Unauthorized();
+        _;
+    }
 
     modifier onlyGateway() {
         if (msg.sender != address(gateway)) revert Unauthorized();
@@ -120,7 +133,8 @@ contract ZetaOrderBook is UniversalContract {
         bytes32 _zetaPriceId,
         address _callbackChain,
         bytes memory _callbackAddress,
-        address _connectedGasZRC20
+        address _connectedGasZRC20,
+        address _owner
     ) {
         gateway = GatewayZEVM(gatewayAddress);
         pythOracle = IPyth(pythOracleAddress);
@@ -129,12 +143,23 @@ contract ZetaOrderBook is UniversalContract {
         zetaPriceId = _zetaPriceId;
         callbackChain = _callbackChain;
         callbackAddress = _callbackAddress;
+        connectedGasZRC20 = _connectedGasZRC20;
+        owner = _owner;
         
         // Approve gateway to spend ETH.BASE for gas fees for loop function
         IZRC20(_connectedGasZRC20).approve(
             address(gateway),
             type(uint256).max
         );
+    }
+
+    // Transfer ownership to a new address
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert Unauthorized();
+        
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
     }
 
     // Get latest ZETA price from Pyth
@@ -417,7 +442,7 @@ contract ZetaOrderBook is UniversalContract {
         // Call the external contract to trigger the loop
         try gateway.call(
             callbackAddress,
-            usdcToken,
+            connectedGasZRC20,
             message,
             callOptions,
             revertOptions
@@ -468,7 +493,17 @@ contract ZetaOrderBook is UniversalContract {
         }
     }
 
-    // For receiving native ZETA
+    // Sweep connected gas token back to owner
+    function sweepConnectedGas() external onlyOwner {
+        uint256 balance = IZRC20(connectedGasZRC20).balanceOf(address(this));
+        if (balance == 0) revert InsufficientFunds();
+        
+        if (!IZRC20(connectedGasZRC20).transfer(owner, balance)) {
+            revert TransferFailed();
+        }
+    }
+
+    // For receiving native ZETA and connected gas token
     receive() external payable {
         // When receiving ZETA directly (not through depositZeta), add it to the contract's balance and sender's balance
         if (msg.value > 0) {

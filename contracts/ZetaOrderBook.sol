@@ -71,7 +71,8 @@ contract ZetaOrderBook is UniversalContract {
         uint256 id;
         address owner;
         uint256 amount;   // Amount of ZETA for sell orders or USDC for buy orders
-        uint256 price;    // Target price in USDC with 6 decimals
+        uint256 priceLow; // Target price low in USDC with 6 decimals
+        uint256 priceHigh; // Target price high in USDC with 6 decimals
         uint256 slippage; // Slippage tolerance in basis points (1% = 100)
         OrderType orderType;
         bool active;
@@ -84,12 +85,14 @@ contract ZetaOrderBook is UniversalContract {
     // User balances
     mapping(address => uint256) public userUsdcBalance;
     mapping(address => uint256) public userZetaBalance;
+    mapping(address => uint256) public userUsdcBalanceLocked;
+    mapping(address => uint256) public userZetaBalanceLocked;
 
     // Events
-    event OrderCreated(uint256 indexed orderId, address indexed owner, OrderType orderType, uint256 amount, uint256 price);
-    event OrderExecuted(uint256 indexed orderId, uint256 executionPrice);
+    event OrderCreated(uint256 indexed orderId, address indexed owner, OrderType orderType, uint256 amount, uint256 priceLow, uint256 priceHigh);
+    event OrderExecuted(uint256 indexed orderId, uint256 executionPrice, OrderType orderType);
     event OrderCancelled(uint256 indexed orderId);
-    event PriceChecked(uint256 indexed orderId, uint256 currentPrice, uint256 targetPrice, bool conditionsMet);
+    event PriceChecked(uint256 indexed orderId, uint256 currentPrice, uint256 targetPriceLow, uint256 targetPriceHigh, bool conditionsMet);
     event SwapCompleted(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
     event UsdcDeposited(address indexed user, uint256 amount);
     event ZetaDeposited(address indexed user, uint256 amount);
@@ -219,63 +222,108 @@ contract ZetaOrderBook is UniversalContract {
         emit ZetaWithdrawn(msg.sender, amount);
     }
 
-    // Create a sell order for ZETA (native token)
-    function createSellOrder(uint256 targetPrice, uint256 slippageBps) external {
-        uint256 zetaAmount = userZetaBalance[msg.sender];
+    // Create a sell order for ZETA (native token) for a specific orderId
+    function _createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps, uint256 orderId) internal {
+        // get the owner of the order
+        address orderOwner = orders[orderId].owner;
+
+        uint256 zetaAmount = userZetaBalance[orderOwner];
         if (zetaAmount == 0) revert InsufficientFunds();
         if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
 
-        // Deduct ZETA from user's balance
-        userZetaBalance[msg.sender] -= zetaAmount;
 
-        // Create order
-        uint256 orderId = nextOrderId++;
+        // Lock ZETA from user's balance
+        userZetaBalance[orderOwner] -= zetaAmount;
+        userZetaBalanceLocked[orderOwner] += zetaAmount;
 
         orders[orderId] = Order({
             id: orderId,
-            owner: msg.sender,
+            owner: orderOwner, // maintain the owner of the order
             amount: zetaAmount,
-            price: targetPrice,
+            priceLow: targetPriceLow,
+            priceHigh: targetPriceHigh,
             slippage: slippageBps,
             orderType: OrderType.SELL,
             active: true
         });
 
-        emit OrderCreated(orderId, msg.sender, OrderType.SELL, zetaAmount, targetPrice);
+        emit OrderCreated(orderId, orderOwner, OrderType.SELL, zetaAmount, targetPriceLow, targetPriceHigh);
+
+        // Check if order can be executed immediately
+        checkAndExecuteOrder(orderId);
+    }
+
+    // Create a sell order for ZETA (native token)
+    function createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
+        // Create order
+        uint256 orderId = nextOrderId++;
+        // set the owner of the order
+        orders[orderId].owner = msg.sender;
+        _createSellOrder(targetPriceLow, targetPriceHigh, slippageBps, orderId);
+    }
+
+    // Create a buy order with USDC
+    function _createBuyOrder(uint256 zetaAmount, uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps, uint256 orderId) internal {
+        // get the owner of the order
+        address orderOwner = orders[orderId].owner;
+
+        // Calculate the required USDC amount
+        uint256 usdcAmount = (zetaAmount * targetPriceLow) / 1e6;
+
+        // Check if user has enough USDC balance
+        if (userUsdcBalance[orderOwner] < usdcAmount) revert InsufficientFunds();
+        if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
+
+        // Lock USDC from user's balance
+        userUsdcBalance[orderOwner] -= usdcAmount;
+        userUsdcBalanceLocked[orderOwner] += usdcAmount;
+
+        orders[orderId] = Order({
+            id: orderId,
+            owner: orderOwner, // maintain the owner of the order
+            amount: zetaAmount,
+            priceLow: targetPriceLow,
+            priceHigh: targetPriceHigh,
+            slippage: slippageBps,
+            orderType: OrderType.BUY,
+            active: true
+        });
+
+        emit OrderCreated(orderId, orderOwner, OrderType.BUY, zetaAmount, targetPriceLow, targetPriceHigh);
 
         // Check if order can be executed immediately
         checkAndExecuteOrder(orderId);
     }
 
     // Create a buy order with USDC
-    function createBuyOrder(uint256 zetaAmount, uint256 targetPrice, uint256 slippageBps) external {
+    function createBuyOrder(uint256 zetaAmount, uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
         // Calculate the required USDC amount
-        uint256 usdcAmount = (zetaAmount * targetPrice) / 1e6;
+        uint256 usdcAmount = (zetaAmount * targetPriceLow) / 1e6;
 
         // Check if user has enough USDC balance
         if (userUsdcBalance[msg.sender] < usdcAmount) revert InsufficientFunds();
         if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
 
-        // Deduct USDC from user's balance
-        userUsdcBalance[msg.sender] -= usdcAmount;
-
         // Create order
         uint256 orderId = nextOrderId++;
+        
+        // set the owner of the order
+        orders[orderId].owner = msg.sender;
+        _createBuyOrder(zetaAmount, targetPriceLow, targetPriceHigh, slippageBps, orderId);
+    }
 
-        orders[orderId] = Order({
-            id: orderId,
-            owner: msg.sender,
-            amount: zetaAmount,
-            price: targetPrice,
-            slippage: slippageBps,
-            orderType: OrderType.BUY,
-            active: true
-        });
-
-        emit OrderCreated(orderId, msg.sender, OrderType.BUY, zetaAmount, targetPrice);
-
-        // Check if order can be executed immediately
-        checkAndExecuteOrder(orderId);
+    function setupFollowupOrder(uint256 orderId, OrderType orderType) internal {
+        // If the followup orderType is SELL, use the internal _createSellOrder function
+        if (orderType == OrderType.SELL) {
+            // sell all ZETA at the target price.
+            _createSellOrder(orders[orderId].priceLow, orders[orderId].priceHigh, orders[orderId].slippage, orderId);
+        } else {
+            // buy as much as possible with the USDC balance at the target price.
+            uint256 zetaAmount = (userUsdcBalance[orders[orderId].owner] * orders[orderId].priceLow) / 1e6;
+            _createBuyOrder(zetaAmount, orders[orderId].priceLow, orders[orderId].priceHigh, orders[orderId].slippage, orderId);
+        }
+        
+        orders[orderId].orderType = orderType;
     }
 
     // Cancel an order
@@ -292,10 +340,12 @@ contract ZetaOrderBook is UniversalContract {
         if (order.orderType == OrderType.SELL) {
             // Return ZETA to user's balance
             userZetaBalance[order.owner] += order.amount;
+            userZetaBalanceLocked[order.owner] -= order.amount;
         } else {
             // Return USDC to user's balance
-            uint256 usdcAmount = (order.amount * order.price) / 1e6;
+            uint256 usdcAmount = (order.amount * order.priceLow) / 1e6; // TODO: Ensure there are no rounding errors
             userUsdcBalance[order.owner] += usdcAmount;
+            userUsdcBalanceLocked[order.owner] -= usdcAmount;
         }
 
         emit OrderCancelled(orderId);
@@ -313,13 +363,13 @@ contract ZetaOrderBook is UniversalContract {
         // Check conditions based on order type
         if (order.orderType == OrderType.SELL) {
             // For sell orders, execute if current price >= target price
-            conditionsMet = currentPrice >= order.price;
+            conditionsMet = currentPrice >= order.priceHigh;
         } else {
             // For buy orders, execute if current price <= target price
-            conditionsMet = currentPrice <= order.price;
+            conditionsMet = currentPrice <= order.priceLow;
         }
 
-        emit PriceChecked(orderId, currentPrice, order.price, conditionsMet);
+        emit PriceChecked(orderId, currentPrice, order.priceLow, order.priceHigh, conditionsMet); // TODO: Remove this because it will get noisy
 
         if (conditionsMet) {
             // Execute the order
@@ -333,12 +383,13 @@ contract ZetaOrderBook is UniversalContract {
     // Execute an order
     function executeOrder(uint256 orderId, uint256 executionPrice) internal {
         Order storage order = orders[orderId];
-        order.active = false;  // Mark inactive before swap attempt
+        // TODO: Determine if we should test if the order is still active here or is that checked elsewhere? Is it possible for this to be reached with an inactive order?
+        // handled in the onCall function?
 
         if (order.orderType == OrderType.SELL) {
             // SELL Order: Swap native ZETA for USDC
             // Calculate minimum USDC output based on order price and slippage
-            uint256 minUsdcOutput = (order.amount * order.price * (10000 - order.slippage)) / (1e6 * 10000);
+            uint256 minUsdcOutput = (order.amount * order.priceHigh * (10000 - order.slippage)) / (1e6 * 10000);
 
             // Create params for wrapExactInputSingle
             ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
@@ -353,25 +404,29 @@ contract ZetaOrderBook is UniversalContract {
 
             try swapRouter.wrapExactInputSingle{value: order.amount}(params) returns (uint256 amountOut) {
                 if (amountOut < minUsdcOutput) {
-                    order.active = true;
                     triggerPriceCheckLoop(orderId);
                     return;  // Exit without reverting
                 }
-                userUsdcBalance[order.owner] += amountOut;
-                contractUsdcBalance += amountOut;
+                userUsdcBalance[order.owner] += amountOut; // increase available balance with the profit only
+                userZetaBalanceLocked[order.owner] -= order.amount; // decrease locked balance with the amount of ZETA swapped.
+                contractUsdcBalance += amountOut; // increase contract USDC holdings
+                contractZetaBalance -= order.amount; // decrease contract ZETA holdings
+
                 emit SwapCompleted(address(0), usdcToken, order.amount, amountOut);
+                emit OrderExecuted(orderId, executionPrice, OrderType.SELL);
+
+                // Flip order to BUY and increase userUsdcBalanceLocked (since the order is active)
+                setupFollowupOrder(orderId, OrderType.BUY);
+                triggerPriceCheckLoop(orderId);
             } catch {
-                // If swap fails, return ZETA to user's balance
-                userZetaBalance[order.owner] += order.amount;
-                contractZetaBalance += order.amount;
-                order.active = true;
+                // If swap fails, try again after another loop
                 triggerPriceCheckLoop(orderId);
                 return;  // Exit without reverting
             }
         } else {
             // BUY Order: Swap USDC for native ZETA
             // Calculate USDC amount to use
-            uint256 usdcAmount = (order.amount * order.price) / 1e6;
+            uint256 usdcAmount = (order.amount * order.priceLow) / 1e6; // TODO: Ensure there are no rounding errors
             
             // Calculate minimum ZETA output based on slippage
             uint256 minZetaOutput = (order.amount * (10000 - order.slippage)) / 10000;
@@ -393,26 +448,27 @@ contract ZetaOrderBook is UniversalContract {
             try swapRouter.unwrapExactInputSingle(params) returns (uint256 amountOut) {
                 if (amountOut < minZetaOutput) {
                     IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
-                    order.active = true;
                     triggerPriceCheckLoop(orderId);
                     return;  // Exit without reverting
                 }
-                userZetaBalance[order.owner] += amountOut;
-                contractZetaBalance += amountOut;
+                userZetaBalance[order.owner] += amountOut; // increase available balance
+                userZetaBalanceLocked[order.owner] -= amountOut; // decrease locked balance with the amount of ZETA swapped.
+                contractZetaBalance += amountOut; // increase contract ZETA holdings
+                contractUsdcBalance -= usdcAmount; // decrease contract USDC holdings
+
                 IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
                 emit SwapCompleted(usdcToken, address(0), usdcAmount, amountOut);
+                emit OrderExecuted(orderId, executionPrice, OrderType.BUY);
+                // Flip order to SELL and increase userZetaBalanceLocked (since the order is active)
+                setupFollowupOrder(orderId, OrderType.SELL);
+                triggerPriceCheckLoop(orderId);
             } catch {
-                // If swap fails, return USDC to user's balance
-                userUsdcBalance[order.owner] += usdcAmount;
-                contractUsdcBalance += usdcAmount;
+                // If swap fails, try again after another loop
                 IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
-                order.active = true;  // Set back to active
                 triggerPriceCheckLoop(orderId);
                 return;  // Exit without reverting
             }
         }
-
-        emit OrderExecuted(orderId, executionPrice);
     }
 
     // Start the cross-chain loop for price checking
@@ -449,16 +505,19 @@ contract ZetaOrderBook is UniversalContract {
             orderId
         );
 
+        // Convert callbackAddress to bytes
+        bytes memory receiver = abi.encodePacked(callbackAddress);
+
         // Call the external contract to trigger the loop
         try gateway.call(
-            callbackAddress,
+            receiver,
             connectedGasZRC20,
             message,
             callOptions,
             revertOptions
         ) {
             // Success, loop initiated
-            emit HelloEvent("Hello on ZetaChain", "Loop cycled");
+            emit HelloEvent("ZetaHopper:ZetaChain", "Outbound Callback");
         } catch {
             revert PriceCheckFailed();
         }
@@ -471,9 +530,37 @@ contract ZetaOrderBook is UniversalContract {
         uint256 amount,
         bytes calldata message
     ) external override onlyGateway {
-        uint256 orderId = abi.decode(message[4:], (uint256));
-        checkAndExecuteOrder(orderId);
-        emit HelloEvent("Hello on ZetaChain", "Received message");
+        // Extract the function selector from the message
+        bytes4 selector;
+        if (message.length >= 4) {
+            // Fixed: Use proper calldata access
+            bytes4 tempSelector;
+            assembly {
+            // Load the first 4 bytes from calldata position message.offset
+                tempSelector := calldataload(message.offset)
+            }
+            // Shift right by 28 bytes (224 bits) to get just the first 4 bytes
+            selector = tempSelector >> 224;
+        }
+
+        if (selector == bytes4(keccak256("priceCheckCallback(uint256)"))) {
+            // Price check callback from external chain
+            // Skip the first 4 bytes (function selector) and decode the orderId
+            uint256 orderId;
+            assembly {
+            // Load from calldata at position message.offset + 4 (skipping selector)
+                orderId := calldataload(add(message.offset, 4))
+            }
+
+            // Check if order still exists and is active
+            if (orderId < nextOrderId && orders[orderId].active) {
+                // Re-check order conditions
+                checkAndExecuteOrder(orderId);
+            }
+        } else {
+            // Simple string handling for the hello message
+            emit HelloEvent("Hello on ZetaChain", "Received message");
+        }
     }
 
     // Sweep connected gas token back to owner

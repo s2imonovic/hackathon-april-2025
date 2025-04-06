@@ -80,7 +80,7 @@ contract CallbackConnector is Ownable {
             // Extract the orderId parameter
             uint256 orderId;
             assembly {
-                // Load from calldata at position message.offset + 4 (skipping selector)
+            // Load from calldata at position message.offset + 4 (skipping selector)
                 orderId := calldataload(add(message.offset, 4))
             }
             priceCheckCallback(orderId);

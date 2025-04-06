@@ -22,6 +22,7 @@ function getContractUrl(network, address) {
 
 // Helper function to verify contract with retries
 async function verifyWithRetries(address, constructorArguments, maxRetries = 3) {
+    await sleep(6000); // Wait for the contract to be indexed by Blockscout
     const network = hre.network.name;
     const contractUrl = getContractUrl(network, address);
 

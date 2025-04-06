@@ -419,7 +419,7 @@ contract ZetaOrderBook is UniversalContract {
     function triggerPriceCheckLoop(uint256 orderId) internal {
         // Create call options
         CallOptions memory callOptions = CallOptions({
-            gasLimit: 21000,
+            gasLimit: 200000,
             isArbitraryCall: false
         });
 

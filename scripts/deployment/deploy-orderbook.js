@@ -22,7 +22,7 @@ function getContractUrl(network, address) {
 
 // Helper function to verify contract with retries
 async function verifyWithRetries(address, constructorArguments, maxRetries = 3) {
-    await sleep(6000); // Wait for the contract to be indexed by Blockscout
+    await sleep(14000); // Wait for the contract to be indexed by Blockscout
     const network = hre.network.name;
     const contractUrl = getContractUrl(network, address);
 
@@ -51,7 +51,7 @@ async function verifyWithRetries(address, constructorArguments, maxRetries = 3) 
                 console.log(`View contract at: ${contractUrl}`);
                 return;
             }
-            console.error(`Verification attempt ${i + 1} failed:`, error.message);
+            console.error(`Verification attempt ${i + 1} failed for ${address}:`, error.message);
             if (i < maxRetries - 1) {
                 console.log("Waiting 60 seconds before retrying...");
                 await sleep(60000);
@@ -85,7 +85,7 @@ async function main() {
 
         const gatewayAddress = network === 'base_sepolia' 
             ? "0x0c487a766110c85d301d96e33579c5b317fa4995"  // Base Sepolia Gateway
-            : "0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E"; // Base Mainnet Gateway
+            : "0x48B9AACC350b20147001f88821d31731Ba4C30ed"; // Base Mainnet Gateway
 
         const callbackConnector = await CallbackConnector.deploy(
             gatewayAddress, // Base Sepolia Gateway
@@ -117,11 +117,12 @@ async function main() {
         // TODO: Fix verification. It swears that callbackConnector.target isn't a contract. 
         //    Re-Verification is not needed until the contract changes however.
         // Verify the contract with retries
-        // try {
-        //     await verifyWithRetries(callbackConnectorAddress, callbackConnectorArgs);
-        // } catch (error) {
-        //     console.error("Failed to verify CallbackConnector after all retries:", error);
-        // }
+        try {
+            await verifyWithRetries(callbackConnectorAddress, callbackConnectorArgs);
+        } catch (error) {
+            console.error("Failed to verify CallbackConnector after all retries:", error);
+            console.error(`Callback Connector Args: ${callbackConnectorArgs}`);
+        }
     } else if (network === 'testnet' || network === 'mainnet') {
         // Get the CallbackConnector address from Base
         console.log("🔍 Fetching CallbackConnector address...");

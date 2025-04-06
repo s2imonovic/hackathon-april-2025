@@ -6,13 +6,17 @@ async function main() {
     const savedAddresses = getSavedContractAddresses();
     
     // Get the ZetaOrderBook address from ZetaChain testnet
-    const zetaOrderBookAddress = savedAddresses['testnet']?.['ZetaOrderBook'];
+    const zetaOrderBookAddress = network === 'testnet' 
+        ? savedAddresses['testnet']?.['ZetaOrderBook'] 
+        : savedAddresses['mainnet']?.['ZetaOrderBook'];
     if (!zetaOrderBookAddress) {
-        throw new Error("ZetaOrderBook not deployed on ZetaChain testnet yet. Deploy it first.");
+        throw new Error("ZetaOrderBook not deployed on ZetaChain yet. Deploy it first.");
     }
 
     // Get the CallbackConnector address from Base Sepolia
-    const callbackConnectorAddress = savedAddresses['base_sepolia']?.['CallbackConnector'];
+    const callbackConnectorAddress = network === 'testnet'
+        ? savedAddresses['base_sepolia']?.['CallbackConnector']
+        : savedAddresses['base']?.['CallbackConnector'];
     if (!callbackConnectorAddress) {
         throw new Error("CallbackConnector not deployed on Base Sepolia yet. Deploy it first.");
     }

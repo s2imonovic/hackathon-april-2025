@@ -67,7 +67,7 @@ contract CallbackConnector is Ownable {
     ) external payable onlyGateway returns (bytes4) {
         bytes4 selector;
         if (message.length >= 4) {
-            // Extract the selector from message data
+            // Extract the selector from calldata
             assembly {
                 let offset := message.offset
                 selector := calldataload(offset)
@@ -80,6 +80,7 @@ contract CallbackConnector is Ownable {
             // Extract the orderId parameter
             uint256 orderId;
             assembly {
+                // Load from calldata at position message.offset + 4 (skipping selector)
                 orderId := calldataload(add(message.offset, 4))
             }
             priceCheckCallback(orderId);

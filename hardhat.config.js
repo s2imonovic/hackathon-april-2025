@@ -31,8 +31,7 @@ module.exports = {
       gasPrice: 1000000000
     },
     mainnet: {
-      // url: 'https://zetachain-evm.blockpi.network/v1/rpc/public',
-      url: 'https://zetachain-mainnet.g.allthatnode.com/archive/evm',
+      url: 'https://zetachain-evm.blockpi.network/v1/rpc/public',
       accounts: [PK],
       chainId: 7000,
       gasPrice: 10000000
@@ -62,7 +61,7 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-      base_sepolia: process.env.BASESCAN_API_KEY || "",
+      base_sepolia: process.env.BLOCKSCOUT_API_KEY || "",
       testnet: process.env.BLOCKSCOUT_API_KEY || "",
       base: process.env.BASESCAN_API_KEY || "",
       mainnet: process.env.BLOCKSCOUT_API_KEY || ""
@@ -72,8 +71,8 @@ module.exports = {
         network: "base_sepolia",
         chainId: 84532,
         urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
-          browserURL: "https://sepolia.basescan.org"
+          apiURL: "https://base-sepolia.blockscout.com/api",
+          browserURL: "https://base-sepolia.blockscout.com"
         }
       },
       {
@@ -89,7 +88,7 @@ module.exports = {
         chainId: 8453,
         urls: {
           apiURL: "https://api.basescan.org/api",
-          browserURL: "https://basescan.org"
+          browserURL: "https://base.blockscout.com"
         }
       },
       {

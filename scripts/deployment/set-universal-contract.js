@@ -5,21 +5,20 @@ async function main() {
     // Get addresses from saved contract addresses
     const savedAddresses = getSavedContractAddresses();
     
-    const network = hre.network.name;
-    const isMainnet = network === 'base';
-    const zetaNetwork = isMainnet ? 'mainnet' : 'testnet';
-    const baseNetwork = isMainnet ? 'base' : 'base_sepolia';
-    
-    // Get the ZetaOrderBook address from ZetaChain
-    const zetaOrderBookAddress = savedAddresses[zetaNetwork]?.['ZetaOrderBook'];
+    // Get the ZetaOrderBook address from ZetaChain testnet
+    const zetaOrderBookAddress = network === 'testnet' 
+        ? savedAddresses['testnet']?.['ZetaOrderBook'] 
+        : savedAddresses['mainnet']?.['ZetaOrderBook'];
     if (!zetaOrderBookAddress) {
-        throw new Error(`ZetaOrderBook not deployed on ZetaChain ${zetaNetwork} yet. Deploy it first.`);
+        throw new Error("ZetaOrderBook not deployed on ZetaChain yet. Deploy it first.");
     }
 
-    // Get the CallbackConnector address from Base
-    const callbackConnectorAddress = savedAddresses[baseNetwork]?.['CallbackConnector'];
+    // Get the CallbackConnector address from Base Sepolia
+    const callbackConnectorAddress = network === 'testnet'
+        ? savedAddresses['base_sepolia']?.['CallbackConnector']
+        : savedAddresses['base']?.['CallbackConnector'];
     if (!callbackConnectorAddress) {
-        throw new Error(`CallbackConnector not deployed on ${baseNetwork} yet. Deploy it first.`);
+        throw new Error("CallbackConnector not deployed on Base Sepolia yet. Deploy it first.");
     }
 
     console.log("Setting universal contract address...");

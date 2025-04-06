@@ -63,7 +63,7 @@ module.exports = {
     apiKey: {
       base_sepolia: process.env.BLOCKSCOUT_API_KEY || "",
       testnet: process.env.BLOCKSCOUT_API_KEY || "",
-      base: process.env.BLOCKSCOUT_API_KEY || "",
+      base: process.env.BASESCAN_API_KEY || "",
       mainnet: process.env.BLOCKSCOUT_API_KEY || ""
     },
     customChains: [
@@ -87,7 +87,7 @@ module.exports = {
         network: "base",
         chainId: 8453,
         urls: {
-          apiURL: "https://base.blockscout.com/api",
+          apiURL: "https://api.basescan.org/api",
           browserURL: "https://base.blockscout.com"
         }
       },

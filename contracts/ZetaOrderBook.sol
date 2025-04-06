@@ -222,22 +222,23 @@ contract ZetaOrderBook is UniversalContract {
         emit ZetaWithdrawn(msg.sender, amount);
     }
 
-    // Create a sell order for ZETA (native token)
-    function createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
-        uint256 zetaAmount = userZetaBalance[msg.sender];
+    // Create a sell order for ZETA (native token) for a specific orderId
+    function _createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps, uint256 orderId) internal {
+        // get the owner of the order
+        address orderOwner = orders[orderId].owner;
+
+        uint256 zetaAmount = userZetaBalance[orderOwner];
         if (zetaAmount == 0) revert InsufficientFunds();
         if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
 
-        // Lock ZETA from user's balance
-        userZetaBalance[msg.sender] -= zetaAmount;
-        userZetaBalanceLocked[msg.sender] += zetaAmount;
 
-        // Create order
-        uint256 orderId = nextOrderId++;
+        // Lock ZETA from user's balance
+        userZetaBalance[orderOwner] -= zetaAmount;
+        userZetaBalanceLocked[orderOwner] += zetaAmount;
 
         orders[orderId] = Order({
             id: orderId,
-            owner: msg.sender,
+            owner: orderOwner, // maintain the owner of the order
             amount: zetaAmount,
             priceLow: targetPriceLow,
             priceHigh: targetPriceHigh,
@@ -246,7 +247,49 @@ contract ZetaOrderBook is UniversalContract {
             active: true
         });
 
-        emit OrderCreated(orderId, msg.sender, OrderType.SELL, zetaAmount, targetPriceLow, targetPriceHigh);
+        emit OrderCreated(orderId, orderOwner, OrderType.SELL, zetaAmount, targetPriceLow, targetPriceHigh);
+
+        // Check if order can be executed immediately
+        checkAndExecuteOrder(orderId);
+    }
+
+    // Create a sell order for ZETA (native token)
+    function createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
+        // Create order
+        uint256 orderId = nextOrderId++;
+        // set the owner of the order
+        orders[orderId].owner = msg.sender;
+        _createSellOrder(targetPriceLow, targetPriceHigh, slippageBps, orderId);
+    }
+
+    // Create a buy order with USDC
+    function _createBuyOrder(uint256 zetaAmount, uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps, uint256 orderId) internal {
+        // get the owner of the order
+        address orderOwner = orders[orderId].owner;
+
+        // Calculate the required USDC amount
+        uint256 usdcAmount = (zetaAmount * targetPriceLow) / 1e6;
+
+        // Check if user has enough USDC balance
+        if (userUsdcBalance[orderOwner] < usdcAmount) revert InsufficientFunds();
+        if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
+
+        // Lock USDC from user's balance
+        userUsdcBalance[orderOwner] -= usdcAmount;
+        userUsdcBalanceLocked[orderOwner] += usdcAmount;
+
+        orders[orderId] = Order({
+            id: orderId,
+            owner: orderOwner, // maintain the owner of the order
+            amount: zetaAmount,
+            priceLow: targetPriceLow,
+            priceHigh: targetPriceHigh,
+            slippage: slippageBps,
+            orderType: OrderType.BUY,
+            active: true
+        });
+
+        emit OrderCreated(orderId, orderOwner, OrderType.BUY, zetaAmount, targetPriceLow, targetPriceHigh);
 
         // Check if order can be executed immediately
         checkAndExecuteOrder(orderId);
@@ -261,28 +304,26 @@ contract ZetaOrderBook is UniversalContract {
         if (userUsdcBalance[msg.sender] < usdcAmount) revert InsufficientFunds();
         if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
 
-        // Lock USDC from user's balance
-        userUsdcBalance[msg.sender] -= usdcAmount;
-        userUsdcBalanceLocked[msg.sender] += usdcAmount;
-
         // Create order
         uint256 orderId = nextOrderId++;
+        
+        // set the owner of the order
+        orders[orderId].owner = msg.sender;
+        _createBuyOrder(zetaAmount, targetPriceLow, targetPriceHigh, slippageBps, orderId);
+    }
 
-        orders[orderId] = Order({
-            id: orderId,
-            owner: msg.sender,
-            amount: zetaAmount,
-            priceLow: targetPriceLow,
-            priceHigh: targetPriceHigh,
-            slippage: slippageBps,
-            orderType: OrderType.BUY,
-            active: true
-        });
-
-        emit OrderCreated(orderId, msg.sender, OrderType.BUY, zetaAmount, targetPriceLow, targetPriceHigh);
-
-        // Check if order can be executed immediately
-        checkAndExecuteOrder(orderId);
+    function setupFollowupOrder(uint256 orderId, OrderType orderType) internal {
+        // If the followup orderType is SELL, use the internal _createSellOrder function
+        if (orderType == OrderType.SELL) {
+            // sell all ZETA at the target price.
+            _createSellOrder(orders[orderId].priceLow, orders[orderId].priceHigh, orders[orderId].slippage, orderId);
+        } else {
+            // buy as much as possible with the USDC balance at the target price.
+            uint256 zetaAmount = (userUsdcBalance[orders[orderId].owner] * orders[orderId].priceLow) / 1e6;
+            _createBuyOrder(zetaAmount, orders[orderId].priceLow, orders[orderId].priceHigh, orders[orderId].slippage, orderId);
+        }
+        
+        orders[orderId].orderType = orderType;
     }
 
     // Cancel an order
@@ -366,12 +407,16 @@ contract ZetaOrderBook is UniversalContract {
                     triggerPriceCheckLoop(orderId);
                     return;  // Exit without reverting
                 }
-                userUsdcBalance[order.owner] += amountOut; // increase available balance, which will be locked in the next loop
-                contractUsdcBalance += amountOut;
+                userUsdcBalance[order.owner] += amountOut; // increase available balance with the profit only
+                userZetaBalanceLocked[order.owner] -= order.amount; // decrease locked balance with the amount of ZETA swapped.
+                contractUsdcBalance += amountOut; // increase contract USDC holdings
+                contractZetaBalance -= order.amount; // decrease contract ZETA holdings
+
                 emit SwapCompleted(address(0), usdcToken, order.amount, amountOut);
                 emit OrderExecuted(orderId, executionPrice, OrderType.SELL);
+
                 // Flip order to BUY and increase userUsdcBalanceLocked (since the order is active)
-                order.orderType = OrderType.BUY;
+                setupFollowupOrder(orderId, OrderType.BUY);
                 triggerPriceCheckLoop(orderId);
             } catch {
                 // If swap fails, try again after another loop
@@ -406,13 +451,16 @@ contract ZetaOrderBook is UniversalContract {
                     triggerPriceCheckLoop(orderId);
                     return;  // Exit without reverting
                 }
-                userZetaBalance[order.owner] += amountOut; // increase available balance, which will be locked in the next loop
-                contractZetaBalance += amountOut;
+                userZetaBalance[order.owner] += amountOut; // increase available balance
+                userZetaBalanceLocked[order.owner] -= amountOut; // decrease locked balance with the amount of ZETA swapped.
+                contractZetaBalance += amountOut; // increase contract ZETA holdings
+                contractUsdcBalance -= usdcAmount; // decrease contract USDC holdings
+
                 IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
                 emit SwapCompleted(usdcToken, address(0), usdcAmount, amountOut);
                 emit OrderExecuted(orderId, executionPrice, OrderType.BUY);
                 // Flip order to SELL and increase userZetaBalanceLocked (since the order is active)
-                order.orderType = OrderType.SELL;
+                setupFollowupOrder(orderId, OrderType.SELL);
                 triggerPriceCheckLoop(orderId);
             } catch {
                 // If swap fails, try again after another loop

@@ -65,29 +65,8 @@ contract CallbackConnector is Ownable {
         MessageContext calldata context,
         bytes calldata message
     ) external payable onlyGateway returns (bytes4) {
-        bytes4 selector;
-        if (message.length >= 4) {
-            // Extract the selector from calldata
-            assembly {
-                let offset := message.offset
-                selector := calldataload(offset)
-            }
-            // Shift right by 28 bytes (224 bits) to get just the first 4 bytes
-            selector = selector >> 224;
-        }
-
-        if (selector == bytes4(keccak256("priceCheckCallback(uint256)"))) {
-            // Extract the orderId parameter
-            uint256 orderId;
-            assembly {
-            // Load from calldata at position message.offset + 4 (skipping selector)
-                orderId := calldataload(add(message.offset, 4))
-            }
-            priceCheckCallback(orderId);
-        } else {
-            emit HelloEvent("Message received", "");
-        }
-
+        uint256 orderId = abi.decode(message[4:], (uint256));
+        priceCheckCallback(orderId);
         return "";
     }
 

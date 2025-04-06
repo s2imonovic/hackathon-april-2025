@@ -471,37 +471,9 @@ contract ZetaOrderBook is UniversalContract {
         uint256 amount,
         bytes calldata message
     ) external override onlyGateway {
-        // Extract the function selector from the message
-        bytes4 selector;
-        if (message.length >= 4) {
-            // Fixed: Use proper calldata access
-            bytes4 tempSelector;
-            assembly {
-            // Load the first 4 bytes from calldata position message.offset
-                tempSelector := calldataload(message.offset)
-            }
-            // Shift right by 28 bytes (224 bits) to get just the first 4 bytes
-            selector = tempSelector >> 224;
-        }
-
-        if (selector == bytes4(keccak256("checkAndExecuteOrder(uint256)"))) {
-            // Price check callback from external chain
-            // Skip the first 4 bytes (function selector) and decode the orderId
-            uint256 orderId;
-            assembly {
-            // Load from calldata at position message.offset + 4 (skipping selector)
-                orderId := calldataload(add(message.offset, 4))
-            }
-
-            // Check if order still exists and is active
-            if (orderId < nextOrderId && orders[orderId].active) {
-                // Re-check order conditions
-                checkAndExecuteOrder(orderId);
-            }
-        } else {
-            // Simple string handling for the hello message
-            emit HelloEvent("Hello on ZetaChain", "Received message");
-        }
+        uint256 orderId = abi.decode(message[4:], (uint256));
+        checkAndExecuteOrder(orderId);
+        emit HelloEvent("Hello on ZetaChain", "Received message");
     }
 
     // Sweep connected gas token back to owner

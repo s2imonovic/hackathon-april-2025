@@ -52,8 +52,8 @@ async function verifyWithRetries(address, constructorArguments, maxRetries = 3) 
             }
             console.error(`Verification attempt ${i + 1} failed:`, error.message);
             if (i < maxRetries - 1) {
-                console.log("Waiting 7 seconds before retrying...");
-                await sleep(7000);
+                console.log("Waiting 60 seconds before retrying...");
+                await sleep(60000);
             }
         }
     }

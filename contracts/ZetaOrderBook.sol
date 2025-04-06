@@ -58,7 +58,6 @@ contract ZetaOrderBook is UniversalContract {
     // Contract balances
     uint256 public contractZetaBalance;
     uint256 public contractUsdcBalance;
-    uint256 public contractConnectedGasBalance;  // Balance of connected gas token (ETH.BASE)
 
     // Connected gas token address
     address public immutable connectedGasZRC20;
@@ -420,7 +419,7 @@ contract ZetaOrderBook is UniversalContract {
     function triggerPriceCheckLoop(uint256 orderId) internal {
         // Create call options
         CallOptions memory callOptions = CallOptions({
-            gasLimit: 200000,
+            gasLimit: 21000,
             isArbitraryCall: false
         });
 
@@ -433,7 +432,18 @@ contract ZetaOrderBook is UniversalContract {
             onRevertGasLimit: 200000
         });
 
-        // Message for the external contract
+        // Query gas fee for the call
+        (, uint256 gasFee) = IZRC20(connectedGasZRC20).withdrawGasFeeWithGasLimit(callOptions.gasLimit);
+        
+        // Ensure we have enough balance
+        if (IZRC20(connectedGasZRC20).balanceOf(address(this)) < gasFee) {
+            revert InsufficientFunds();
+        }
+
+        // Approve gateway to spend gas fee
+        // Already set up in the constructor for max gas. TODO: Undo that and uncomment this.
+        // IZRC20(connectedGasZRC20).approve(address(gateway), gasFee);
+
         bytes memory message = abi.encodeWithSignature(
             "priceCheckCallback(uint256)",
             orderId
@@ -448,6 +458,7 @@ contract ZetaOrderBook is UniversalContract {
             revertOptions
         ) {
             // Success, loop initiated
+            emit HelloEvent("Hello on ZetaChain", "Loop cycled");
         } catch {
             revert PriceCheckFailed();
         }

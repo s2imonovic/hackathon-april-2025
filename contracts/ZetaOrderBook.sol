@@ -357,6 +357,7 @@ contract ZetaOrderBook is UniversalContract {
 
         // Get current ZETA price
         (uint256 currentPrice, ) = getZetaPrice();
+        currentPrice = currentPrice * 100;  // Adjust Pyth price to match USDC decimals
 
         bool conditionsMet = false;
 

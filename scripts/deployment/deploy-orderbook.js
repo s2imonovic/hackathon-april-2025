@@ -134,8 +134,8 @@ async function main() {
 
         console.log("📝 Preparing deployment parameters...");
         const gatewayAddress = network === 'testnet' 
-            ? "0x0c487a766110c85d301d96e33579c5b317fa4995" 
-            : "0x48B9AACC350b20147001f88821d31731Ba4C30ed";
+            ? "0x6c533f7fe93fae114d0954697069df33c9b74fd7" 
+            : "0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E";
         const pythOracleAddress = network === 'testnet' 
             ? "0x0708325268dF9F66270F1401206434524814508b"
             : "0x2880aB155794e7179c9eE2e38200202908C17B43";

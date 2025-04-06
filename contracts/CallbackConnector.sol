@@ -66,21 +66,10 @@ contract CallbackConnector is Ownable {
         bytes calldata message
     ) external payable onlyGateway returns (bytes4) {
         bytes4 selector;
-        // TODO: Delete this if the new code works.
-        // if (message.length >= 4) {
-        //     // Extract the selector from calldata
-        //     assembly {
-        //         let offset := message.offset
-        //         selector := calldataload(offset)
-        //     }
-        //     // Shift right by 28 bytes (224 bits) to get just the first 4 bytes
-        //     selector = selector >> 224;
-        // }
-        emit HelloEvent("Message.length is: ", string(abi.encodePacked(message.length)));
-        if (message.length >= 36) {
-            // Extract the selector from calldata
+        if (message.length >= 4) {
+            // Extract the selector from message data
             assembly {
-                let offset := add(message.offset, 96)  // Skip to the actual selector position
+                let offset := message.offset
                 selector := calldataload(offset)
             }
             // Shift right by 28 bytes (224 bits) to get just the first 4 bytes
@@ -91,7 +80,7 @@ contract CallbackConnector is Ownable {
             // Extract the orderId parameter
             uint256 orderId;
             assembly {
-                orderId := calldataload(add(message.offset, 100))  // Skip to orderId position
+                orderId := calldataload(add(message.offset, 4))
             }
             priceCheckCallback(orderId);
         } else {

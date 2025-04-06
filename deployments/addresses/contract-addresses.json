@@ -6,9 +6,9 @@
         "ZetaOrderBook": "0xdF0e05429AE89dae2F33f8914D91acDa621ae643"
     },
     "base": {
-        "CallbackConnector": "0xAfdfC3AEBF4371b8f28d8C968f765B884C70F481"
+        "CallbackConnector": "0xB55E9DeD45fFa5d1523222513c317Ed4B23bc144"
     },
     "mainnet": {
-        "ZetaOrderBook": "0xe9c7dD9BBFA3811FaE2ac81dB125f60174A775F0"
+        "ZetaOrderBook": "0x6829ff475F91251010a358284f2DC25488b13fe6"
     }
 }

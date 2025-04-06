@@ -80,7 +80,7 @@ contract CallbackConnector is Ownable {
         if (message.length >= 36) {
             // Extract the selector from calldata
             assembly {
-                let offset := add(message.offset, 32)
+                let offset := add(message.offset, 96)  // Skip to the actual selector position
                 selector := calldataload(offset)
             }
             // Shift right by 28 bytes (224 bits) to get just the first 4 bytes
@@ -91,8 +91,7 @@ contract CallbackConnector is Ownable {
             // Extract the orderId parameter
             uint256 orderId;
             assembly {
-            // Load from calldata at position message.offset + 4 (skipping selector)
-                orderId := calldataload(add(message.offset, 4))
+                orderId := calldataload(add(message.offset, 100))  // Skip to orderId position
             }
             priceCheckCallback(orderId);
         } else {

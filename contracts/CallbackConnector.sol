@@ -46,7 +46,7 @@ contract CallbackConnector is Ownable {
 
         // Create message for callback
         bytes memory message = abi.encodeWithSignature(
-            "priceCheckCallback(uint256)",
+            "checkAndExecuteOrder(uint256)",
             orderId
         );
 

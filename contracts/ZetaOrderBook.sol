@@ -484,7 +484,7 @@ contract ZetaOrderBook is UniversalContract {
             selector = tempSelector >> 224;
         }
 
-        if (selector == bytes4(keccak256("priceCheckCallback(uint256)"))) {
+        if (selector == bytes4(keccak256("checkAndExecuteOrder(uint256)"))) {
             // Price check callback from external chain
             // Skip the first 4 bytes (function selector) and decode the orderId
             uint256 orderId;

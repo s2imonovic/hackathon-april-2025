@@ -392,7 +392,7 @@ contract ZetaOrderBook is UniversalContract {
         if (order.orderType == OrderType.SELL) {
             // SELL Order: Swap native ZETA for USDC
             // Calculate minimum USDC output based on order price and slippage
-            uint256 minUsdcOutput = (order.amount * (10000 - order.slippage)) / 10000;
+            uint256 minUsdcOutput = (order.amount * order.priceLow * (10000 - order.slippage)) / (10000 * 1e6);
 
             // Create params for wrapExactInputSingle
             ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({

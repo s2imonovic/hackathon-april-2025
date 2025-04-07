@@ -345,6 +345,123 @@ useEffect(() => {
     refetchPrice()
   }
 
+  // Add slippage presets
+  const SLIPPAGE_PRESETS = {
+    "1%": 100,    // 1% = 100 in contract value
+    "5%": 500,    // 5% = 500 in contract value
+    "10%": 1000,  // 10% = 1000 in contract value
+  }
+
+  // Add state for showing custom input
+  const [showCustomSlippage, setShowCustomSlippage] = useState(false)
+
+  // Helper to set slippage from preset
+  const handleSlippagePreset = (value: number) => {
+    setOrderSlippage(value.toString())
+    setShowCustomSlippage(false)
+  }
+
+  // Replace the existing slippage input with this new UI
+  const SlippageSelector = () => (
+    <div className="space-y-2">
+      <Label htmlFor="slippage-selector" className="text-base-content">
+        Slippage Tolerance
+      </Label>
+      <div className="flex gap-2 items-center">
+        {Object.entries(SLIPPAGE_PRESETS).map(([label, value]) => (
+          <Button
+            key={label}
+            variant={orderSlippage === value.toString() ? "default" : "outline"}
+            onClick={() => handleSlippagePreset(value)}
+            className="flex-1"
+          >
+            {label}
+          </Button>
+        ))}
+        <Button
+          variant={showCustomSlippage ? "default" : "outline"}
+          onClick={() => setShowCustomSlippage(true)}
+          className="flex-1"
+        >
+          Custom
+        </Button>
+      </div>
+      {showCustomSlippage && (
+        <div className="mt-2">
+          <Input
+            id="order-slippage"
+            placeholder="Enter custom slippage (e.g., 200 for 2%)"
+            value={orderSlippage}
+            onChange={(e) => setOrderSlippage(e.target.value)}
+            className="bg-base-100 border-base-300 text-base-content"
+          />
+          <p className="text-sm text-muted-foreground mt-1">
+            Enter value in basis points (100 = 1%)
+          </p>
+        </div>
+      )}
+    </div>
+  )
+
+  // Add price adjustment presets
+  const PRICE_ADJUSTMENTS = {
+    "1%": 0.01,
+    "5%": 0.05,
+    "20%": 0.20,
+  }
+
+  // Helper to adjust price by percentage
+  const adjustPrice = (basePrice: string, percentage: number): string => {
+    const price = parseFloat(basePrice)
+    if (isNaN(price)) return basePrice
+    return (price * (1 + percentage)).toFixed(6)
+  }
+
+  // Create a reusable price input component with adjustment buttons
+  const PriceInput = ({ 
+    label, 
+    value, 
+    onChange,
+    placeholder 
+  }: { 
+    label: string
+    value: string
+    onChange: (value: string) => void
+    placeholder: string
+  }) => {
+    const inputId = `order-${label.toLowerCase().replace(/\s+/g, '-')}`
+    const basePrice = zetaPrice ? (Number(zetaPrice) / 1e6).toString() : "0"
+    const isLowPrice = label === "Target Price Low"
+    
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={inputId} className="text-base-content">
+          {label}
+        </Label>
+        <Input
+          id={inputId}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="bg-base-100 border-base-300 text-base-content mb-2"
+        />
+        <div className="flex gap-2">
+          {Object.entries(PRICE_ADJUSTMENTS).map(([label, percentage]) => (
+            <Button
+              key={label}
+              variant="outline"
+              size="sm"
+              onClick={() => onChange(adjustPrice(basePrice, isLowPrice ? -percentage : percentage))}
+              className="flex-1"
+            >
+              {isLowPrice ? "-" : "+"}{label}
+            </Button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <section className="w-full py-12 md:py-24 lg:py-32 bg-base-100">
       <div className="container px-4 md:px-6">
@@ -454,44 +571,21 @@ useEffect(() => {
                     {/* Order Section */}
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="order-target-price-low" className="text-base-content">
-                            Target Price Low (USDC)
-                          </Label>
-                          <Input
-                            id="order-target-price-low"
-                            placeholder="e.g., 0.246500 for $0.2465"
-                            value={orderTargetPriceLow}
-                            onChange={(e) => setOrderTargetPriceLow(e.target.value)}
-                            className="bg-base-100 border-base-300 text-base-content"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="order-target-price-high" className="text-base-content">
-                            Target Price High (USDC)
-                          </Label>
-                          <Input
-                            id="order-target-price-high"
-                            placeholder="e.g., 0.250000 for $0.2500"
-                            value={orderTargetPriceHigh}
-                            onChange={(e) => setOrderTargetPriceHigh(e.target.value)}
-                            className="bg-base-100 border-base-300 text-base-content"
-                          />
-                        </div>
+                        <PriceInput
+                          label="Target Price Low"
+                          value={orderTargetPriceLow}
+                          onChange={setOrderTargetPriceLow}
+                          placeholder="e.g., 0.246500"
+                        />
+                        <PriceInput
+                          label="Target Price High"
+                          value={orderTargetPriceHigh}
+                          onChange={setOrderTargetPriceHigh}
+                          placeholder="e.g., 0.250000"
+                        />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="order-slippage" className="text-base-content">
-                            Slippage (bps)
-                          </Label>
-                          <Input
-                            id="order-slippage"
-                            placeholder="e.g., 50 for 0.5%"
-                            value={orderSlippage}
-                            onChange={(e) => setOrderSlippage(e.target.value)}
-                            className="bg-base-100 border-base-300 text-base-content"
-                          />
-                        </div>
+                        <SlippageSelector />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Button

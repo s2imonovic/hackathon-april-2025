@@ -20,23 +20,28 @@ interface OrderDetails {
   0: bigint; // order ID
   1: string; // maker address
   2: bigint; // amount
-  3: bigint; // target price
-  4: bigint; // slippage
-  5: number; // order type (0 = Buy, 1 = Sell)
-  6: boolean; // is active
+  // Note: The new contract returns priceLow and priceHigh instead of one target price.
+  3: bigint; // target price low
+  4: bigint; // target price high
+  5: bigint; // slippage
+  6: number; // order type (0 = Buy, 1 = Sell)
+  7: boolean; // is active
 }
 
 export function TradingPage() {
   // Existing states
-  const [amount, setAmount] = useState("1000")
+  const [amount, setAmount] = useState("1000") // only used for sell orders amount in the old version
 
   // States for deposit and order creation
   const [depositUsdcAmount, setDepositUsdcAmount] = useState("")
   const [depositZetaAmount, setDepositZetaAmount] = useState("")
-  const [orderTargetPrice, setOrderTargetPrice] = useState("")
+  // Replace orderTargetPrice with two new states: orderTargetPriceLow and orderTargetPriceHigh
+  const [orderTargetPriceLow, setOrderTargetPriceLow] = useState("")
+  const [orderTargetPriceHigh, setOrderTargetPriceHigh] = useState("")
   const [orderSlippage, setOrderSlippage] = useState("")
 
-  // New states for withdrawal actions
+  // For withdrawals, the new functions take no amount argument.
+  // We'll still hold the state in case you want to display an input hint, but these values won't be used.
   const [withdrawUsdcAmount, setWithdrawUsdcAmount] = useState("")
   const [withdrawZetaAmount, setWithdrawZetaAmount] = useState("")
 
@@ -119,6 +124,7 @@ export function TradingPage() {
   useEffect(() => {
     if (zetaPriceData) {
       const [price, timestamp] = zetaPriceData as [bigint, bigint]
+      // Since the new contract divides the price by 100, adjust the display accordingly.
       setZetaPrice(price)
       setPriceTimestamp(timestamp)
     }
@@ -186,12 +192,13 @@ export function TradingPage() {
       abi: zetaOrderBookABI,
       functionName: "depositZeta",
       value: depositZetaAmount
-        ? BigInt(Math.floor(parseFloat(depositZetaAmount) * 1e18)) // Convert to smallest unit (wei)
+        ? BigInt(Math.floor(parseFloat(depositZetaAmount) * 1e18))
         : BigInt(0),
     })
   }
 
   // Order functions
+  // For sell orders, the new contract expects (targetPriceLow, targetPriceHigh, slippage)
   const handleCreateSellOrder = () => {
     if (!address) {
       alert("Please connect your wallet to perform this action.")
@@ -203,12 +210,14 @@ export function TradingPage() {
       abi: zetaOrderBookABI,
       functionName: "createSellOrder",
       args: [
-        orderTargetPrice ? parseInt(orderTargetPrice) : 0,
+        orderTargetPriceLow ? parseInt(orderTargetPriceLow) : 0,
+        orderTargetPriceHigh ? parseInt(orderTargetPriceHigh) : 0,
         orderSlippage ? parseInt(orderSlippage) : 0,
       ],
     })
   }
 
+  // For buy orders, the new contract expects (targetPriceLow, targetPriceHigh, slippage)
   const handleCreateBuyOrder = () => {
     if (!address) {
       alert("Please connect your wallet to perform this action.")
@@ -220,14 +229,14 @@ export function TradingPage() {
       abi: zetaOrderBookABI,
       functionName: "createBuyOrder",
       args: [
-        amount ? parseInt(amount) : 0,
-        orderTargetPrice ? parseInt(orderTargetPrice) : 0,
+        orderTargetPriceLow ? parseInt(orderTargetPriceLow) : 0,
+        orderTargetPriceHigh ? parseInt(orderTargetPriceHigh) : 0,
         orderSlippage ? parseInt(orderSlippage) : 0,
       ],
     })
   }
 
-  // Withdrawal functions
+  // Withdrawal functions: new functions require no argument so we remove the amount parameter.
   const handleWithdrawUsdc = () => {
     if (!address) {
       alert("Please connect your wallet to perform this action.")
@@ -238,7 +247,7 @@ export function TradingPage() {
       address: zetaOrderBookAddress,
       abi: zetaOrderBookABI,
       functionName: "withdrawUsdc",
-      args: [withdrawUsdcAmount ? parseInt(withdrawUsdcAmount) : 0],
+      args: [],
     })
   }
 
@@ -252,7 +261,7 @@ export function TradingPage() {
       address: zetaOrderBookAddress,
       abi: zetaOrderBookABI,
       functionName: "withdrawZeta",
-      args: [withdrawZetaAmount ? parseInt(withdrawZetaAmount) : 0],
+      args: [],
     })
   }
 
@@ -384,19 +393,34 @@ export function TradingPage() {
 
                     {/* Order Section */}
                     <div className="space-y-4">
+                      {/* New: Two inputs for target price low and high */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="order-target-price" className="text-base-content">
-                            Target Price (USDC, 6 decimals)
+                          <Label htmlFor="order-target-price-low" className="text-base-content">
+                            Target Price Low (USDC, 6 decimals)
                           </Label>
                           <Input
-                            id="order-target-price"
+                            id="order-target-price-low"
                             placeholder="e.g., 246500 for $0.2465"
-                            value={orderTargetPrice}
-                            onChange={(e) => setOrderTargetPrice(e.target.value)}
+                            value={orderTargetPriceLow}
+                            onChange={(e) => setOrderTargetPriceLow(e.target.value)}
                             className="bg-base-100 border-base-300 text-base-content"
                           />
                         </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="order-target-price-high" className="text-base-content">
+                            Target Price High (USDC, 6 decimals)
+                          </Label>
+                          <Input
+                            id="order-target-price-high"
+                            placeholder="e.g., 250000 for $0.2500"
+                            value={orderTargetPriceHigh}
+                            onChange={(e) => setOrderTargetPriceHigh(e.target.value)}
+                            className="bg-base-100 border-base-300 text-base-content"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="order-slippage" className="text-base-content">
                             Slippage (bps)
@@ -446,17 +470,7 @@ export function TradingPage() {
                         </SelectContent>
                       </Select>
                       {withdrawType === "usdc" ? (
-                        <div className="space-y-2">
-                          <Label htmlFor="withdraw-usdc" className="text-base-content">
-                            Withdraw USDC (in smallest unit)
-                          </Label>
-                          <Input
-                            id="withdraw-usdc"
-                            placeholder="e.g., 1000"
-                            value={withdrawUsdcAmount}
-                            onChange={(e) => setWithdrawUsdcAmount(e.target.value)}
-                            className="bg-base-100 border-base-300 text-base-content"
-                          />
+                        <div className="space-y-2">                          
                           <Button
                             onClick={handleWithdrawUsdc}
                             className="bg-primary text-primary-content hover:bg-primary/90"
@@ -466,16 +480,6 @@ export function TradingPage() {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <Label htmlFor="withdraw-zeta" className="text-base-content">
-                            Withdraw ZETA (in smallest unit)
-                          </Label>
-                          <Input
-                            id="withdraw-zeta"
-                            placeholder="e.g., 500"
-                            value={withdrawZetaAmount}
-                            onChange={(e) => setWithdrawZetaAmount(e.target.value)}
-                            className="bg-base-100 border-base-300 text-base-content"
-                          />
                           <Button
                             onClick={handleWithdrawZeta}
                             className="bg-primary text-primary-content hover:bg-primary/90"
@@ -530,11 +534,11 @@ export function TradingPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-5 w-5 text-primary" />
+                      <BarChart3 className="h-5 w-5" />
                       <span className="text-base-content">ZETA Price</span>
                     </div>
                     <div className="text-base-content font-medium">
-                      {zetaPrice ? `$${(Number(zetaPrice) / 1e8).toFixed(6)}` : "$--.--"}
+                      {zetaPrice ? `$${(Number(zetaPrice) / 1e6).toFixed(6)}` : "$--.--"}
                       {priceTimestamp && (
                         <span className="ml-2 text-xs text-base-content/70">
                           (Updated: {new Date(Number(priceTimestamp) * 1000).toLocaleTimeString()})
@@ -542,9 +546,6 @@ export function TradingPage() {
                       )}
                     </div>
                   </div>
-                  {/* <Button size="sm" variant="outline" onClick={refreshPrice}>
-                    Refresh Price
-                  </Button> */}
                   <div className="flex items-center justify-between">
                     <span className="text-base-content">Next Order ID</span>
                     <span className="text-base-content font-medium">
@@ -618,27 +619,33 @@ export function TradingPage() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-base-content">Target Price</span>
+                        <span className="text-base-content">Target Price Low</span>
                         <span className="text-base-content font-medium">
                           ${(Number(orderDetailsData[3] || 0) / 1e6).toFixed(6)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
+                        <span className="text-base-content">Target Price High</span>
+                        <span className="text-base-content font-medium">
+                          ${(Number(orderDetailsData[4] || 0) / 1e6).toFixed(6)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
                         <span className="text-base-content">Slippage</span>
                         <span className="text-base-content font-medium">
-                          {(Number(orderDetailsData[4] || 0) / 100).toFixed(2)}%
+                          {(Number(orderDetailsData[5] || 0) / 100).toFixed(2)}%
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-base-content">Type</span>
                         <span className="text-base-content font-medium">
-                          {Number(orderDetailsData[5]) === 0 ? "Buy" : "Sell"}
+                          {Number(orderDetailsData[6]) === 0 ? "Buy" : "Sell"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-base-content">Status</span>
-                        <span className={`font-medium ${orderDetailsData[6] ? "text-green-500" : "text-red-500"}`}>
-                          {orderDetailsData[6] ? "Active" : "Inactive"}
+                        <span className={`font-medium ${orderDetailsData[7] ? "text-green-500" : "text-red-500"}`}>
+                          {orderDetailsData[7] ? "Active" : "Inactive"}
                         </span>
                       </div>
                     </div>

@@ -16,32 +16,32 @@ import contractAddresses from "@/deployments/addresses/contract-addresses.json"
 const zetaOrderBookABI = contractAbis.mainnet.ZetaOrderBook.abi
 const zetaOrderBookAddress = contractAddresses.mainnet.ZetaOrderBook as `0x${string}`
 
+// Updated OrderDetails interface according to new contract:
+// Fields: id, owner, amount, priceLow, priceHigh, slippage, orderType, active
 interface OrderDetails {
-  0: bigint; // order ID
-  1: string; // maker address
-  2: bigint; // amount
-  // Note: The new contract returns priceLow and priceHigh instead of one target price.
-  3: bigint; // target price low
-  4: bigint; // target price high
-  5: bigint; // slippage
-  6: number; // order type (0 = Buy, 1 = Sell)
-  7: boolean; // is active
+  0: bigint
+  1: string
+  2: bigint
+  3: bigint
+  4: bigint
+  5: bigint
+  6: number
+  7: boolean
 }
 
 export function TradingPage() {
   // Existing states
-  const [amount, setAmount] = useState("1000") // only used for sell orders amount in the old version
+  const [amount, setAmount] = useState("1000")
 
   // States for deposit and order creation
+  // Note: The new contract expects two price values: targetPriceLow and targetPriceHigh
   const [depositUsdcAmount, setDepositUsdcAmount] = useState("")
   const [depositZetaAmount, setDepositZetaAmount] = useState("")
-  // Replace orderTargetPrice with two new states: orderTargetPriceLow and orderTargetPriceHigh
   const [orderTargetPriceLow, setOrderTargetPriceLow] = useState("")
   const [orderTargetPriceHigh, setOrderTargetPriceHigh] = useState("")
   const [orderSlippage, setOrderSlippage] = useState("")
 
-  // For withdrawals, the new functions take no amount argument.
-  // We'll still hold the state in case you want to display an input hint, but these values won't be used.
+  // New states for withdrawal actions (still kept if needed for UI hints)
   const [withdrawUsdcAmount, setWithdrawUsdcAmount] = useState("")
   const [withdrawZetaAmount, setWithdrawZetaAmount] = useState("")
 
@@ -121,10 +121,31 @@ export function TradingPage() {
     chainId,
   })
 
+  const { data: userActiveOrderIdData, refetch: refetchUserActiveOrderId } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "userActiveOrderId",
+    args: [address],
+    chainId,
+  })
+
+  // Read the active order details using the active order ID (if non-zero)
+  const { data: currentOrderData, refetch: refetchCurrentOrder } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "orders",
+    args: [
+      userActiveOrderIdData && userActiveOrderIdData.toString() !== "0"
+        ? Number(userActiveOrderIdData.toString())
+        : 0
+    ],
+    chainId,
+  }) as { data: OrderDetails | undefined, refetch: () => void }
+
   useEffect(() => {
     if (zetaPriceData) {
       const [price, timestamp] = zetaPriceData as [bigint, bigint]
-      // Since the new contract divides the price by 100, adjust the display accordingly.
+      // Note: the contract divides the raw price by 100, adjust display as needed.
       setZetaPrice(price)
       setPriceTimestamp(timestamp)
     }
@@ -150,7 +171,7 @@ export function TradingPage() {
 
   useEffect(() => {
     if (orderDetailsData) {
-      console.log("Order Details:", orderDetailsData)
+      console.log("Order Details (from cancel input):", orderDetailsData)
     }
   }, [orderDetailsData])
 
@@ -165,6 +186,18 @@ export function TradingPage() {
       console.log("User ZETA Balance:", userZetaBalanceData.toString())
     }
   }, [userZetaBalanceData])
+
+  useEffect(() => {
+    if (userActiveOrderIdData) {
+      console.log("User Active Order ID:", userActiveOrderIdData.toString())
+    }
+  }, [userActiveOrderIdData])
+
+  useEffect(() => {
+    if (currentOrderData) {
+      console.log("Current Active Order Details:", currentOrderData)
+    }
+  }, [currentOrderData])
 
   // Deposit functions
   const handleDepositUsdc = () => {
@@ -198,7 +231,7 @@ export function TradingPage() {
   }
 
   // Order functions
-  // For sell orders, the new contract expects (targetPriceLow, targetPriceHigh, slippage)
+  // Updated: For the new contract we now pass targetPriceLow and targetPriceHigh along with slippage.
   const handleCreateSellOrder = () => {
     if (!address) {
       alert("Please connect your wallet to perform this action.")
@@ -217,7 +250,6 @@ export function TradingPage() {
     })
   }
 
-  // For buy orders, the new contract expects (targetPriceLow, targetPriceHigh, slippage)
   const handleCreateBuyOrder = () => {
     if (!address) {
       alert("Please connect your wallet to perform this action.")
@@ -236,7 +268,8 @@ export function TradingPage() {
     })
   }
 
-  // Withdrawal functions: new functions require no argument so we remove the amount parameter.
+  // Withdrawal functions
+  // Note: The new contract functions withdraw the entire unlocked balance (no amount argument required)
   const handleWithdrawUsdc = () => {
     if (!address) {
       alert("Please connect your wallet to perform this action.")
@@ -393,7 +426,6 @@ export function TradingPage() {
 
                     {/* Order Section */}
                     <div className="space-y-4">
-                      {/* New: Two inputs for target price low and high */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="order-target-price-low" className="text-base-content">
@@ -470,7 +502,7 @@ export function TradingPage() {
                         </SelectContent>
                       </Select>
                       {withdrawType === "usdc" ? (
-                        <div className="space-y-2">                          
+                        <div className="space-y-2">                   
                           <Button
                             onClick={handleWithdrawUsdc}
                             className="bg-primary text-primary-content hover:bg-primary/90"
@@ -479,7 +511,7 @@ export function TradingPage() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-2">               
                           <Button
                             onClick={handleWithdrawZeta}
                             className="bg-primary text-primary-content hover:bg-primary/90"
@@ -517,7 +549,7 @@ export function TradingPage() {
             </Card>
           </motion.div>
 
-          {/* Stats and Info */}
+          {/* Stats, Info, and Active Order */}
           <motion.div
             className="space-y-6"
             initial={{ opacity: 0, x: 20 }}
@@ -534,7 +566,7 @@ export function TradingPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-5 w-5" />
+                      <BarChart3 className="h-5 w-5 text-primary" />
                       <span className="text-base-content">ZETA Price</span>
                     </div>
                     <div className="text-base-content font-medium">
@@ -592,11 +624,79 @@ export function TradingPage() {
               </CardContent>
             </Card>
 
-            {/* Order Details */}
+            {/* Active Order Section */}
             <Card className="bg-base-200 border-base-300">
               <CardHeader>
-                <CardTitle className="text-base-content">Order Details</CardTitle>
-                <CardDescription className="text-base-content/70">Details of the selected order</CardDescription>
+                <CardTitle className="text-base-content">Your Active Order</CardTitle>
+                <CardDescription className="text-base-content/70">
+                  Details of the order currently active for your account
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {userActiveOrderIdData && userActiveOrderIdData.toString() !== "0" && currentOrderData ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Order ID</span>
+                      <span className="text-base-content font-medium">
+                        {currentOrderData[0]?.toString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Maker</span>
+                      <span className="text-base-content font-medium text-xs truncate max-w-[180px]">
+                        {currentOrderData[1]}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Amount</span>
+                      <span className="text-base-content font-medium">
+                        {currentOrderData[2]?.toString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Target Price Low</span>
+                      <span className="text-base-content font-medium">
+                        ${(Number(currentOrderData[3] || 0) / 1e6).toFixed(6)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Target Price High</span>
+                      <span className="text-base-content font-medium">
+                        ${(Number(currentOrderData[4] || 0) / 1e6).toFixed(6)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Slippage</span>
+                      <span className="text-base-content font-medium">
+                        {(Number(currentOrderData[5] || 0) / 100).toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Type</span>
+                      <span className="text-base-content font-medium">
+                        {Number(currentOrderData[6]) === 0 ? "Buy" : "Sell"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Status</span>
+                      <span className={`font-medium ${currentOrderData[7] ? "text-green-500" : "text-red-500"}`}>
+                        {currentOrderData[7] ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-base-content/70">No active order found.</span>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Order Details (via cancel input) */}
+            <Card className="bg-base-200 border-base-300">
+              <CardHeader>
+                <CardTitle className="text-base-content">Order Details (Lookup)</CardTitle>
+                <CardDescription className="text-base-content/70">
+                  Details of the selected order (via order ID lookup)
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

@@ -542,14 +542,20 @@ contract ZetaOrderBook is UniversalContract {
         // Extract the function selector from the message
         bytes4 selector;
         if (message.length >= 4) {
-            // Fixed: Use proper calldata access
-            bytes4 tempSelector;
+            // First try: get first 4 bytes directly
             assembly {
-            // Load the first 4 bytes from calldata position message.offset
-                tempSelector := calldataload(message.offset)
+                calldatacopy(0, message.offset, 4)
+                selector := mload(0)
             }
-            // Shift right by 28 bytes (224 bits) to get just the first 4 bytes
-            selector = tempSelector >> 224;
+            
+            // If this selector doesn't match, try the original method
+            if (selector != bytes4(keccak256("priceCheckCallback(uint256)"))) {
+                bytes4 tempSelector;
+                assembly {
+                    tempSelector := calldataload(message.offset)
+                }
+                selector = tempSelector >> 224;
+            }
         }
 
         if (selector == bytes4(keccak256("priceCheckCallback(uint256)"))) {

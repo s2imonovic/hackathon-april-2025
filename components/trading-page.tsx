@@ -50,7 +50,7 @@ export function TradingPage() {
 
   // New states for token switches
   const [depositType, setDepositType] = useState<"usdc" | "zeta">("zeta")
-  const [withdrawType, setWithdrawType] = useState<"usdc" | "zeta">("usdc")
+  const [withdrawType, setWithdrawType] = useState<"usdc" | "zeta">("zeta")
 
   // State for market price data
   const [zetaPrice, setZetaPrice] = useState<bigint | null>(null)
@@ -114,6 +114,14 @@ export function TradingPage() {
     chainId,
   })
 
+  const { data: userOrderIdData, refetch: refetchUserOrderId } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "getUserOrderId",
+    args: [address],
+    chainId,
+  })
+
   const { data: zetaPriceData, refetch: refetchPrice } = useReadContract({
     address: zetaOrderBookAddress,
     abi: zetaOrderBookABI,
@@ -165,6 +173,19 @@ export function TradingPage() {
       console.log("User ZETA Balance:", userZetaBalanceData.toString())
     }
   }, [userZetaBalanceData])
+
+  useEffect(() => {
+    if (userOrderIdData) {
+      setCancelOrderId(userOrderIdData.toString())
+      refetchOrderDetails()
+    }
+  }, [userOrderIdData, refetchOrderDetails])
+
+  useEffect(() => {
+    if (address) {
+      refetchUserOrderId()
+    }
+  }, [address, refetchUserOrderId])
 
   // Helper functions for price conversion
   const convertDollarsToContractValue = (dollarAmount: string): number => {

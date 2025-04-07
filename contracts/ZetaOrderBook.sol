@@ -175,7 +175,7 @@ contract ZetaOrderBook is UniversalContract {
 
     // Deposit USDC to the contract
     function depositUsdc(uint256 amount) external {
-        if (!IZRC20(usdcToken).transferFrom(msg.sender, address(this), amount)) {
+        if (!IZRC20(usdcToken).transfer(address(this), amount)) {
             revert TransferFailed();
         }
         userUsdcBalance[msg.sender] += amount;

@@ -49,7 +49,7 @@ export function TradingPage() {
   const [cancelOrderId, setCancelOrderId] = useState("")
 
   // New states for token switches
-  const [depositType, setDepositType] = useState<"usdc" | "zeta">("usdc")
+  const [depositType, setDepositType] = useState<"usdc" | "zeta">("zeta")
   const [withdrawType, setWithdrawType] = useState<"usdc" | "zeta">("usdc")
 
   // State for market price data

@@ -321,6 +321,13 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     function setupFollowupOrder(uint256 orderId, OrderType orderType) internal {
+        // Unlock any locked ZETA and USDC from the user's balance so it is available for the next sell order or withdrawal
+        address orderOwner = orders[orderId].owner;
+        userZetaBalance[orderOwner] += userZetaBalanceLocked[orderOwner];
+        userZetaBalanceLocked[orderOwner] = 0;
+        userUsdcBalance[orderOwner] += userUsdcBalanceLocked[orderOwner];
+        userUsdcBalanceLocked[orderOwner] = 0;
+
         // If the followup orderType is SELL, use the internal _createSellOrder function
         if (orderType == OrderType.SELL) {
             // sell all ZETA for USDC at the target price.

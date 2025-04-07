@@ -49,8 +49,8 @@ export function TradingPage() {
   const [cancelOrderId, setCancelOrderId] = useState("")
 
   // New states for token switches
-  const [depositType, setDepositType] = useState<"usdc" | "zeta">("usdc")
-  const [withdrawType, setWithdrawType] = useState<"usdc" | "zeta">("usdc")
+  const [depositType, setDepositType] = useState<"usdc" | "zeta">("zeta")
+  const [withdrawType, setWithdrawType] = useState<"usdc" | "zeta">("zeta")
 
   // State for market price data
   const [zetaPrice, setZetaPrice] = useState<bigint | null>(null)
@@ -110,6 +110,14 @@ export function TradingPage() {
     address: zetaOrderBookAddress,
     abi: zetaOrderBookABI,
     functionName: "userZetaBalance",
+    args: [address],
+    chainId,
+  })
+
+  const { data: userOrderIdData, refetch: refetchUserOrderId } = useReadContract({
+    address: zetaOrderBookAddress,
+    abi: zetaOrderBookABI,
+    functionName: "getUserOrderId",
     args: [address],
     chainId,
   })
@@ -187,17 +195,36 @@ export function TradingPage() {
     }
   }, [userZetaBalanceData])
 
-  useEffect(() => {
-    if (userActiveOrderIdData) {
-      console.log("User Active Order ID:", userActiveOrderIdData.toString())
+useEffect(() => {
+    if (userOrderIdData) {
+      setCancelOrderId(userOrderIdData.toString())
+      refetchOrderDetails()
+      console.log("User Active Order ID:", userOrderIdData.toString())
     }
-  }, [userActiveOrderIdData])
+  }, [userOrderIdData, refetchOrderDetails])
+
+  useEffect(() => {
+    if (address) {
+      refetchUserOrderId()
+    }
+  }, [address, refetchUserOrderId])
 
   useEffect(() => {
     if (currentOrderData) {
       console.log("Current Active Order Details:", currentOrderData)
     }
   }, [currentOrderData])
+
+  // Helper functions for price conversion
+  const convertDollarsToContractValue = (dollarAmount: string): number => {
+    const num = parseFloat(dollarAmount)
+    if (isNaN(num)) return 0
+    return Math.floor(num * 1000000) // Convert to contract value (multiply by 1e6)
+  }
+
+  const convertContractValueToDollars = (contractValue: bigint): string => {
+    return (Number(contractValue) / 1000000).toFixed(6) // Convert to dollars (divide by 1e6)
+  }
 
   // Deposit functions
   const handleDepositUsdc = () => {
@@ -243,8 +270,8 @@ export function TradingPage() {
       abi: zetaOrderBookABI,
       functionName: "createSellOrder",
       args: [
-        orderTargetPriceLow ? parseInt(orderTargetPriceLow) : 0,
-        orderTargetPriceHigh ? parseInt(orderTargetPriceHigh) : 0,
+        convertDollarsToContractValue(orderTargetPriceLow),
+        convertDollarsToContractValue(orderTargetPriceHigh),
         orderSlippage ? parseInt(orderSlippage) : 0,
       ],
     })
@@ -261,8 +288,8 @@ export function TradingPage() {
       abi: zetaOrderBookABI,
       functionName: "createBuyOrder",
       args: [
-        orderTargetPriceLow ? parseInt(orderTargetPriceLow) : 0,
-        orderTargetPriceHigh ? parseInt(orderTargetPriceHigh) : 0,
+        convertDollarsToContractValue(orderTargetPriceLow),
+        convertDollarsToContractValue(orderTargetPriceHigh),
         orderSlippage ? parseInt(orderSlippage) : 0,
       ],
     })
@@ -429,11 +456,11 @@ export function TradingPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="order-target-price-low" className="text-base-content">
-                            Target Price Low (USDC, 6 decimals)
+                            Target Price Low (USDC)
                           </Label>
                           <Input
                             id="order-target-price-low"
-                            placeholder="e.g., 246500 for $0.2465"
+                            placeholder="e.g., 0.246500 for $0.2465"
                             value={orderTargetPriceLow}
                             onChange={(e) => setOrderTargetPriceLow(e.target.value)}
                             className="bg-base-100 border-base-300 text-base-content"
@@ -441,11 +468,11 @@ export function TradingPage() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="order-target-price-high" className="text-base-content">
-                            Target Price High (USDC, 6 decimals)
+                            Target Price High (USDC)
                           </Label>
                           <Input
                             id="order-target-price-high"
-                            placeholder="e.g., 250000 for $0.2500"
+                            placeholder="e.g., 0.250000 for $0.2500"
                             value={orderTargetPriceHigh}
                             onChange={(e) => setOrderTargetPriceHigh(e.target.value)}
                             className="bg-base-100 border-base-300 text-base-content"
@@ -721,13 +748,13 @@ export function TradingPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-base-content">Target Price Low</span>
                         <span className="text-base-content font-medium">
-                          ${(Number(orderDetailsData[3] || 0) / 1e6).toFixed(6)}
+                          ${convertContractValueToDollars(orderDetailsData[3] || BigInt(0))}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-base-content">Target Price High</span>
                         <span className="text-base-content font-medium">
-                          ${(Number(orderDetailsData[4] || 0) / 1e6).toFixed(6)}
+                          ${convertContractValueToDollars(orderDetailsData[4] || BigInt(0))}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">

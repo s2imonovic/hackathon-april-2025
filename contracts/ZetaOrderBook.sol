@@ -342,25 +342,20 @@ contract ZetaOrderBook is UniversalContract {
     // Cancel an order
     function cancelOrder(uint256 orderId) external orderExists(orderId) {
         Order storage order = orders[orderId];
+        address orderOwner = orders[orderId].owner;
 
         // Only owner can cancel
-        if (order.owner != msg.sender) revert Unauthorized();
+        if (orderOwner != msg.sender) revert Unauthorized();
 
         // Mark as inactive
         order.active = false;
         userActiveOrderId[msg.sender] = 0; // Clear user's active order
-
-        // Return funds to owner's balance
-        if (order.orderType == OrderType.SELL) {
-            // Return ZETA to user's balance
-            userZetaBalance[order.owner] += order.amount;
-            userZetaBalanceLocked[order.owner] -= order.amount;
-        } else {
-            // Return USDC to user's balance
-            uint256 usdcAmount = (order.amount * order.priceLow) / 1e6; // TODO: Ensure there are no rounding errors
-            userUsdcBalance[order.owner] += usdcAmount;
-            userUsdcBalanceLocked[order.owner] -= usdcAmount;
-        }
+        
+        // Unlock any locked ZETA and USDC from the user's balance so it is available for the next sell order or withdrawal
+        userZetaBalance[orderOwner] += userZetaBalanceLocked[orderOwner];
+        userZetaBalanceLocked[orderOwner] = 0;
+        userUsdcBalance[orderOwner] += userUsdcBalanceLocked[orderOwner];
+        userUsdcBalanceLocked[orderOwner] = 0;
 
         emit OrderCancelled(orderId);
     }

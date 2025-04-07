@@ -715,73 +715,7 @@ useEffect(() => {
                   <span className="text-base-content/70">No active order found.</span>
                 )}
               </CardContent>
-            </Card>
-
-            {/* Order Details (via cancel input) */}
-            <Card className="bg-base-200 border-base-300">
-              <CardHeader>
-                <CardTitle className="text-base-content">Order Details (Lookup)</CardTitle>
-                <CardDescription className="text-base-content/70">
-                  Details of the selected order (via order ID lookup)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {orderDetailsData ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Order ID</span>
-                        <span className="text-base-content font-medium">{cancelOrderId}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Maker</span>
-                        <span className="text-base-content font-medium text-xs truncate max-w-[180px]">
-                          {orderDetailsData[1]}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Amount</span>
-                        <span className="text-base-content font-medium">
-                          {orderDetailsData[2]?.toString() || "0"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Target Price Low</span>
-                        <span className="text-base-content font-medium">
-                          ${convertContractValueToDollars(orderDetailsData[3] || BigInt(0))}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Target Price High</span>
-                        <span className="text-base-content font-medium">
-                          ${convertContractValueToDollars(orderDetailsData[4] || BigInt(0))}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Slippage</span>
-                        <span className="text-base-content font-medium">
-                          {(Number(orderDetailsData[5] || 0) / 100).toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Type</span>
-                        <span className="text-base-content font-medium">
-                          {Number(orderDetailsData[6]) === 0 ? "Buy" : "Sell"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base-content">Status</span>
-                        <span className={`font-medium ${orderDetailsData[7] ? "text-green-500" : "text-red-500"}`}>
-                          {orderDetailsData[7] ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-base-content/70">No order details available</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            </Card>            
           </motion.div>
         </div>
       </div>

@@ -426,7 +426,7 @@ contract ZetaOrderBook is UniversalContract {
 
                 // Flip order to BUY and increase userUsdcBalanceLocked (since the order is active)
                 setupFollowupOrder(orderId, OrderType.BUY);
-                triggerPriceCheckLoop(orderId);
+                //triggerPriceCheckLoop(orderId);
             } catch {
                 // If swap fails, try again after another loop
                 triggerPriceCheckLoop(orderId);
@@ -470,7 +470,7 @@ contract ZetaOrderBook is UniversalContract {
                 emit OrderExecuted(orderId, executionPrice, OrderType.BUY);
                 // Flip order to SELL and increase userZetaBalanceLocked (since the order is active)
                 setupFollowupOrder(orderId, OrderType.SELL);
-                triggerPriceCheckLoop(orderId);
+                //triggerPriceCheckLoop(orderId);
             } catch {
                 // If swap fails, try again after another loop
                 IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval

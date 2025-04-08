@@ -1,11 +1,39 @@
+"use client"
+
 import Link from "next/link"
-import { Github, Twitter, DiscIcon as Discord } from "lucide-react"
+import { Github, Twitter, DiscIcon as Discord, Copy } from "lucide-react"
+import { Button } from "./ui/button"
+import contractAddresses from "@/deployments/addresses/contract-addresses.json"
 
 export function Footer() {
+  const contracts = {
+    orderBook: contractAddresses.mainnet.ZetaOrderBook,
+    callbackConnector: contractAddresses.base.CallbackConnector,
+  }
+
+  const copyAddress = (address: string) => {
+    navigator.clipboard.writeText(address)
+  }
+
+  const getNetworkPrefix = (name: string) => {
+    switch (name) {
+      case 'orderBook':
+        return 'zetachain:'
+      case 'callbackConnector':
+        return 'base:'
+      default:
+        return ''
+    }
+  }
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
   return (
     <footer className="w-full py-6 bg-base-100 border-t border-base-300">
       <div className="container px-4 md:px-6">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-base-content">ZetaHopper</h3>
             <p className="text-sm text-base-content/70">
@@ -26,31 +54,6 @@ export function Footer() {
               </Link>
             </div> */}
           </div>
-          {/* <div className="space-y-4">
-            <h3 className="text-lg font-bold text-base-content">Product</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Documentation
-                </Link>
-              </li>
-            </ul>
-          </div> */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-base-content">Company</h3>
             <ul className="space-y-2 text-sm">
@@ -94,6 +97,25 @@ export function Footer() {
                   Risk Disclosure
                 </Link>
               </li>
+            </ul>
+          </div>
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-base-content">Contracts</h3>
+            <ul className="space-y-2 text-sm">
+              {Object.entries(contracts).map(([name, address]) => (
+                <li key={name} className="flex items-center gap-2">
+                  <span className="text-base-content/70 capitalize">{name}:</span>
+                  <code className="text-xs bg-base-200 text-base-content px-2 py-0.5 rounded-full">{getNetworkPrefix(name)}{formatAddress(address)}</code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-7 text-base-content/70 hover:text-black p-0"
+                    onClick={() => copyAddress(address)}
+                  >
+                    <Copy className="h-2 w-2" />
+                  </Button>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

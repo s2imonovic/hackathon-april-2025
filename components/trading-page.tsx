@@ -350,12 +350,16 @@ useEffect(() => {
       alert("Please connect your wallet to perform this action.")
       return
     }
+    if (!userActiveOrderIdData || userActiveOrderIdData.toString() === "0") {
+      alert("No active order to cancel.")
+      return
+    }
     writeCancelOrder({
       chainId,
       address: zetaOrderBookAddress,
       abi: zetaOrderBookABI,
       functionName: "cancelOrder",
-      args: [cancelOrderId ? parseInt(cancelOrderId) : 0],
+      args: [Number(userActiveOrderIdData.toString())],
     })
   }
 

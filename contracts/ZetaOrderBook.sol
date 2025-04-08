@@ -545,13 +545,13 @@ contract ZetaOrderBook is UniversalContract {
             selector = bytes4(message[:4]);
         }
 
-        if (selector == bytes4(keccak256("priceCheckCallback(uint256)"))) {
-            // Price check callback from external chain
+        if (selector == bytes4(keccak256("checkAndExecuteOrder(uint256)"))) {
+            // This is the Price check callback from external chain
             // Skip the first 4 bytes (function selector) and decode the orderId
             uint256 orderId = abi.decode(message[4:], (uint256));
 
-            // Check if order still exists and is active
-            if (orderId < nextOrderId && orders[orderId].active) {
+            // Check if order is active
+            if (orders[orderId].active) {
                 // Re-check order conditions
                 checkAndExecuteOrder(orderId);
             }

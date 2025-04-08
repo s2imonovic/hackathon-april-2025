@@ -542,30 +542,13 @@ contract ZetaOrderBook is UniversalContract {
         // Extract the function selector from the message
         bytes4 selector;
         if (message.length >= 4) {
-            // First try: get first 4 bytes directly
-            assembly {
-                calldatacopy(0, message.offset, 4)
-                selector := mload(0)
-            }
-            
-            // If this selector doesn't match, try the original method
-            if (selector != bytes4(keccak256("priceCheckCallback(uint256)"))) {
-                bytes4 tempSelector;
-                assembly {
-                    tempSelector := calldataload(message.offset)
-                }
-                selector = tempSelector >> 224;
-            }
+            selector = bytes4(message[:4]);
         }
 
         if (selector == bytes4(keccak256("priceCheckCallback(uint256)"))) {
             // Price check callback from external chain
             // Skip the first 4 bytes (function selector) and decode the orderId
-            uint256 orderId;
-            assembly {
-            // Load from calldata at position message.offset + 4 (skipping selector)
-                orderId := calldataload(add(message.offset, 4))
-            }
+            uint256 orderId = abi.decode(message[4:], (uint256));
 
             // Check if order still exists and is active
             if (orderId < nextOrderId && orders[orderId].active) {

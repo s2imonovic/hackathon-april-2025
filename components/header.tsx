@@ -102,12 +102,6 @@ export function Header() {
                 </button>
               )
             ))}
-            <Link href="/privacy" className="text-base-content hover:text-primary transition-colors">
-              Privacy
-            </Link>
-            <Link href="/terms" className="text-base-content hover:text-primary transition-colors">
-              Terms
-            </Link>
           </nav>
 
           {/* Desktop Action Buttons */}

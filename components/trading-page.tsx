@@ -17,6 +17,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 const zetaOrderBookABI = contractAbis.mainnet.ZetaOrderBook.abi
 const zetaOrderBookAddress = contractAddresses.mainnet.ZetaOrderBook as `0x${string}`
 
+// Check if deposits are enabled
+const DEPOSITS_ENABLED = process.env.NEXT_PUBLIC_DEPOSITS_ENABLED === "true"
+
 // Updated OrderDetails interface according to new contract:
 // Fields: id, owner, amount, priceLow, priceHigh, slippage, orderType, active
 interface OrderDetails {
@@ -251,6 +254,10 @@ useEffect(() => {
 
   // Deposit functions
   const handleDepositUsdc = () => {
+    if (!DEPOSITS_ENABLED) {
+      alert("Deposits are coming soon!")
+      return
+    }
     if (!address) {
       alert("Please connect your wallet to perform this action.")
       return
@@ -260,6 +267,10 @@ useEffect(() => {
   }
 
   const handleDepositZeta = () => {
+    if (!DEPOSITS_ENABLED) {
+      alert("Deposits are coming soon!")
+      return
+    }
     if (!address) {
       alert("Please connect your wallet to perform this action.")
       return
@@ -640,12 +651,14 @@ useEffect(() => {
                               value={depositUsdcAmount}
                               onChange={(e) => setDepositUsdcAmount(e.target.value)}
                               className="bg-base-100 border-base-300 text-base-content"
+                              disabled={!DEPOSITS_ENABLED}
                             />
                             <Button
                               onClick={handleDepositUsdc}
-                              className="bg-primary text-primary-content hover:bg-primary/90"
+                              className={`${DEPOSITS_ENABLED ? "bg-primary text-primary-content hover:bg-primary/90" : "bg-gray-400 text-white cursor-not-allowed"}`}
+                              disabled={!DEPOSITS_ENABLED}
                             >
-                              Deposit USDC
+                              {DEPOSITS_ENABLED ? "Deposit USDC" : "Coming Soon"}
                             </Button>
                           </div>
                         ) : (
@@ -659,12 +672,14 @@ useEffect(() => {
                               value={depositZetaAmount}
                               onChange={(e) => setDepositZetaAmount(e.target.value)}
                               className="bg-base-100 border-base-300 text-base-content"
+                              disabled={!DEPOSITS_ENABLED}
                             />
                             <Button
                               onClick={handleDepositZeta}
-                              className="bg-primary text-primary-content hover:bg-primary/90"
+                              className={`${DEPOSITS_ENABLED ? "bg-primary text-primary-content hover:bg-primary/90" : "bg-gray-400 text-white cursor-not-allowed"}`}
+                              disabled={!DEPOSITS_ENABLED}
                             >
-                              Deposit ZETA
+                              {DEPOSITS_ENABLED ? "Deposit ZETA" : "Coming Soon"}
                             </Button>
                           </div>
                         )}

@@ -543,7 +543,7 @@ useEffect(() => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Tabs defaultValue="trade" onValueChange={setActiveTab}>
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="trade">Trade</TabsTrigger>
                       <TabsTrigger value="withdraw">Withdraw</TabsTrigger>

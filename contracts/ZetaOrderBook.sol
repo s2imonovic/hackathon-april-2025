@@ -103,6 +103,8 @@ contract ZetaOrderBook is UniversalContract {
     event RevertEvent(string, RevertContext);
     event AbortEvent(string, AbortContext);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event ContractMigrated(address indexed newContract);
+    event StateMigrated(address indexed newContract, uint256 nextOrderId);
 
     error TransferFailed();
     error Unauthorized();
@@ -112,6 +114,26 @@ contract ZetaOrderBook is UniversalContract {
     error OrderNotActive();
     error InsufficientFunds();
     error SlippageExceeded(uint256 expectedAmount, uint256 receivedAmount, uint256 slippageBps);
+    error InvalidMigrationTarget();
+    error MigrationInProgress();
+    error NotMigratingContract();
+    error MigrationTransferFailed();
+    error MigrationPermanentlyDisabled();
+
+    // State migration variables
+    bool public isMigrating;
+    address public migrationTarget;
+    bool public migrationPermanentlyDisabled;
+
+    modifier migrationEnabled() {
+        if (migrationPermanentlyDisabled) revert MigrationPermanentlyDisabled();
+        _;
+    }
+
+    modifier notMigrating() {
+        if (isMigrating) revert MigrationInProgress();
+        _;
+    }
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
@@ -173,8 +195,14 @@ contract ZetaOrderBook is UniversalContract {
         return (uint256(uint64(price.price))/100, price.publishTime);
     }
 
+    // Set migration state (can be used to cancel migration)
+    function setMigrationState(bool _isMigrating, address _migrationTarget) external onlyOwner migrationEnabled {
+        isMigrating = _isMigrating;
+        migrationTarget = _migrationTarget;
+    }
+
     // Deposit USDC to the contract
-    function depositUsdc(uint256 amount) external { // user must approve the contract to spend the USDC first
+    function depositUsdc(uint256 amount) external notMigrating {
         if (!IZRC20(usdcToken).transferFrom(msg.sender, address(this), amount)) {
             revert TransferFailed();
         }
@@ -184,7 +212,7 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Deposit ZETA to the contract
-    function depositZeta() external payable {
+    function depositZeta() external payable notMigrating {
         if (msg.value == 0) revert InsufficientFunds();
         contractZetaBalance += msg.value;
         userZetaBalance[msg.sender] += msg.value;
@@ -192,7 +220,7 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Withdraw all unlocked USDC from the contract
-    function withdrawUsdc() external {
+    function withdrawUsdc() external notMigrating {
         uint256 amount = userUsdcBalance[msg.sender];
         if (amount <= 0) revert InsufficientFunds();
         if (contractUsdcBalance < amount) revert InsufficientFunds();
@@ -206,7 +234,7 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Withdraw ZETA from the contract
-    function withdrawZeta() external {
+    function withdrawZeta() external notMigrating {
         uint256 amount = userZetaBalance[msg.sender];
         if (amount <= 0) revert InsufficientFunds();
         if (contractZetaBalance < amount) revert InsufficientFunds();
@@ -254,7 +282,7 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Create a sell order for ZETA (native token)
-    function createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
+    function createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external notMigrating {
         // Check if user already has an active order
         if (userActiveOrderId[msg.sender] != 0 && orders[userActiveOrderId[msg.sender]].active) {
             revert InvalidOrder();
@@ -299,7 +327,7 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Create a buy order with USDC
-    function createBuyOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
+    function createBuyOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external notMigrating {
         // Check if user already has an active order
         if (userActiveOrderId[msg.sender] != 0 && orders[userActiveOrderId[msg.sender]].active) {
             revert InvalidOrder();
@@ -340,7 +368,7 @@ contract ZetaOrderBook is UniversalContract {
     }
 
     // Cancel an order
-    function cancelOrder(uint256 orderId) external orderExists(orderId) {
+    function cancelOrder(uint256 orderId) external orderExists(orderId) notMigrating {
         Order storage order = orders[orderId];
         address orderOwner = orders[orderId].owner;
 
@@ -392,8 +420,6 @@ contract ZetaOrderBook is UniversalContract {
     // Execute an order
     function executeOrder(uint256 orderId, uint256 executionPrice) internal {
         Order storage order = orders[orderId];
-        // TODO: Determine if we should test if the order is still active here or is that checked elsewhere? Is it possible for this to be reached with an inactive order?
-        // handled in the onCall function?
 
         if (order.orderType == OrderType.SELL) {
             // SELL Order: Swap native ZETA for USDC
@@ -426,7 +452,6 @@ contract ZetaOrderBook is UniversalContract {
 
                 // Flip order to BUY and increase userUsdcBalanceLocked (since the order is active)
                 setupFollowupOrder(orderId, OrderType.BUY);
-                //triggerPriceCheckLoop(orderId);
             } catch {
                 // If swap fails, try again after another loop
                 triggerPriceCheckLoop(orderId);
@@ -470,7 +495,6 @@ contract ZetaOrderBook is UniversalContract {
                 emit OrderExecuted(orderId, executionPrice, OrderType.BUY);
                 // Flip order to SELL and increase userZetaBalanceLocked (since the order is active)
                 setupFollowupOrder(orderId, OrderType.SELL);
-                //triggerPriceCheckLoop(orderId);
             } catch {
                 // If swap fails, try again after another loop
                 IERC20(usdcToken).approve(address(swapRouter), 0);  // Reset approval
@@ -506,8 +530,7 @@ contract ZetaOrderBook is UniversalContract {
         }
 
         // Approve gateway to spend gas fee
-        // Already set up in the constructor for max gas. TODO: Undo that and uncomment this.
-        // IZRC20(connectedGasZRC20).approve(address(gateway), gasFee);
+        IZRC20(connectedGasZRC20).approve(address(gateway), gasFee); // TODO: Is this the best way to do this? Note: Constructor currently sets max possible approval.
 
         bytes memory message = abi.encodeWithSignature(
             "priceCheckCallback(uint256)",
@@ -525,9 +548,11 @@ contract ZetaOrderBook is UniversalContract {
             callOptions,
             revertOptions
         ) {
+            IZRC20(connectedGasZRC20).approve(address(gateway), 0);
             // Success, loop initiated
             // emit HelloEvent("ZetaHopper", "Outbound Callback");
         } catch {
+            IZRC20(connectedGasZRC20).approve(address(gateway), 0);
             revert PriceCheckFailed();
         }
     }
@@ -571,13 +596,158 @@ contract ZetaOrderBook is UniversalContract {
         }
     }
 
+    // Migrate contract state and funds to a new contract
+    function migrateToNewContract(address newContract) external onlyOwner migrationEnabled {
+        if (newContract == address(0)) revert InvalidMigrationTarget();
+        if (isMigrating) revert MigrationInProgress();
+        
+        isMigrating = true;
+        migrationTarget = newContract;
+        
+        // Transfer all USDC to new contract
+        if (contractUsdcBalance > 0) {
+            if (!IZRC20(usdcToken).transfer(newContract, contractUsdcBalance)) {
+                isMigrating = false;
+                migrationTarget = address(0);
+                revert TransferFailed();
+            }
+        }
+
+        // Transfer all ZETA to new contract
+        if (contractZetaBalance > 0) {
+            (bool success, ) = payable(newContract).call{value: contractZetaBalance}("");
+            if (!success) {
+                isMigrating = false;
+                migrationTarget = address(0);
+                revert TransferFailed();
+            }
+        }
+
+        // Transfer all connected gas token to new contract
+        uint256 gasBalance = IZRC20(connectedGasZRC20).balanceOf(address(this));
+        if (gasBalance > 0) {
+            if (!IZRC20(connectedGasZRC20).transfer(newContract, gasBalance)) {
+                isMigrating = false;
+                migrationTarget = address(0);
+                revert TransferFailed();
+            }
+        }
+
+        // Emit migration event
+        emit ContractMigrated(newContract);
+    }
+
+    // Function to be called by the new contract to receive state
+    function receiveMigrationState(
+        uint256 _nextOrderId,
+        Order[] calldata _orders,
+        address[] calldata _users,
+        uint256[] calldata _userUsdcBalances,
+        uint256[] calldata _userZetaBalances,
+        uint256[] calldata _userUsdcBalancesLocked,
+        uint256[] calldata _userZetaBalancesLocked,
+        uint256[] calldata _userActiveOrderIds
+    ) external {
+        if (!isMigrating || msg.sender != migrationTarget) revert NotMigratingContract();
+        
+        // Set next order ID
+        nextOrderId = _nextOrderId;
+        
+        // Migrate orders
+        for (uint256 i = 0; i < _orders.length; i++) {
+            orders[i] = _orders[i];
+        }
+        
+        // Migrate user balances and active order IDs
+        for (uint256 i = 0; i < _users.length; i++) {
+            userUsdcBalance[_users[i]] = _userUsdcBalances[i];
+            userZetaBalance[_users[i]] = _userZetaBalances[i];
+            userUsdcBalanceLocked[_users[i]] = _userUsdcBalancesLocked[i];
+            userZetaBalanceLocked[_users[i]] = _userZetaBalancesLocked[i];
+            userActiveOrderId[_users[i]] = _userActiveOrderIds[i];
+        }
+        
+        // Reset migration state
+        isMigrating = false;
+        migrationTarget = address(0);
+        
+        emit StateMigrated(msg.sender, _nextOrderId);
+    }
+
+    // Function to get all active orders for migration
+    function getActiveOrders() external view returns (Order[] memory) {
+        Order[] memory activeOrders = new Order[](nextOrderId);
+        for (uint256 i = 0; i < nextOrderId; i++) {
+            if (orders[i].active) {
+                activeOrders[i] = orders[i];
+            }
+        }
+        return activeOrders;
+    }
+
+    // Function to get all users with non-zero balances for migration
+    function getUsersWithBalances() external view returns (
+        address[] memory users,
+        uint256[] memory usdcBalances,
+        uint256[] memory zetaBalances,
+        uint256[] memory usdcBalancesLocked,
+        uint256[] memory zetaBalancesLocked,
+        uint256[] memory activeOrderIds
+    ) {
+        // Count users with non-zero balances
+        uint256 count = 0;
+        for (uint256 i = 0; i < nextOrderId; i++) {
+            if (orders[i].active) {
+                address user = orders[i].owner;
+                if (userUsdcBalance[user] > 0 || userZetaBalance[user] > 0 ||
+                    userUsdcBalanceLocked[user] > 0 || userZetaBalanceLocked[user] > 0) {
+                    count++;
+                }
+            }
+        }
+
+        // Initialize arrays
+        users = new address[](count);
+        usdcBalances = new uint256[](count);
+        zetaBalances = new uint256[](count);
+        usdcBalancesLocked = new uint256[](count);
+        zetaBalancesLocked = new uint256[](count);
+        activeOrderIds = new uint256[](count);
+
+        // Fill arrays
+        uint256 index = 0;
+        for (uint256 i = 0; i < nextOrderId; i++) {
+            if (orders[i].active) {
+                address user = orders[i].owner;
+                if (userUsdcBalance[user] > 0 || userZetaBalance[user] > 0 ||
+                    userUsdcBalanceLocked[user] > 0 || userZetaBalanceLocked[user] > 0) {
+                    users[index] = user;
+                    usdcBalances[index] = userUsdcBalance[user];
+                    zetaBalances[index] = userZetaBalance[user];
+                    usdcBalancesLocked[index] = userUsdcBalanceLocked[user];
+                    zetaBalancesLocked[index] = userZetaBalanceLocked[user];
+                    activeOrderIds[index] = userActiveOrderId[user];
+                    index++;
+                }
+            }
+        }
+
+        return (users, usdcBalances, zetaBalances, usdcBalancesLocked, zetaBalancesLocked, activeOrderIds);
+    }
+
     // For receiving native ZETA and connected gas token
     receive() external payable {
         // When receiving ZETA directly (not through depositZeta), add it to the contract's balance and sender's balance
         if (msg.value > 0) {
-            contractZetaBalance += msg.value;
-            userZetaBalance[msg.sender] += msg.value;
-            emit ZetaDeposited(msg.sender, msg.value);
+            if (isMigrating) {
+                // During migration, forward all incoming ZETA to the migration target
+                (bool success, ) = payable(migrationTarget).call{value: msg.value}("");
+                if (!success) revert MigrationTransferFailed();
+            } else {
+                contractZetaBalance += msg.value;
+                userZetaBalance[msg.sender] += msg.value;
+                emit ZetaDeposited(msg.sender, msg.value);
+            }
         }
     }
 
@@ -605,5 +775,11 @@ contract ZetaOrderBook is UniversalContract {
 
     function onAbort(AbortContext calldata context) external onlyGateway {
         emit AbortEvent("Abort on ZetaChain", context);
+    }
+
+    // Permanently disable migration functionality
+    function disableMigration() external onlyOwner {
+        if (isMigrating) revert MigrationInProgress();
+        migrationPermanentlyDisabled = true;
     }
 }

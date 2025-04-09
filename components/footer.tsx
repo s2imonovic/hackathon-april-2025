@@ -33,7 +33,7 @@ export function Footer() {
   return (
     <footer className="w-full py-6 bg-base-100 border-t border-base-300">
       <div className="container px-4 md:px-6">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 max-w-4xl mx-auto">
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-base-content">ZetaHopper</h3>
             <p className="text-sm text-base-content/70">
@@ -55,41 +55,16 @@ export function Footer() {
             </div> */}
           </div>
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-base-content">Company</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  About
-                </Link>
-              </li>
-              {/* <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Blog
-                </Link>
-              </li>
-              <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Careers
-                </Link>
-              </li> */}
-              <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div className="space-y-4">
             <h3 className="text-lg font-bold text-base-content">Legal</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="#" className="text-base-content/70 hover:text-primary">
-                  Terms of Service
+                <Link href="/privacy" className="text-base-content/70 hover:text-primary">
+                  Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="text-base-content/70 hover:text-primary">
-                  Privacy Policy
+                <Link href="/terms" className="text-base-content/70 hover:text-primary">
+                  Terms of Service
                 </Link>
               </li>
               <li>
@@ -119,8 +94,23 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        <div className="mt-8 border-t border-base-300 pt-6 text-center text-sm text-base-content/70">
-          <p>Made with ☕️ for Zetachain © {new Date().getFullYear()} ZetaHopper. All rights reserved.</p>
+        <div className="mt-12 pt-8 border-t border-base-300">
+          <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-8">
+            <p className="text-sm text-base-content/70">
+              © {new Date().getFullYear()} ZetaHopper. All rights reserved.
+            </p>
+            <div className="flex space-x-6">
+              <Link href="/privacy" className="text-sm text-base-content/70 hover:text-primary">
+                Privacy
+              </Link>
+              <Link href="/terms" className="text-sm text-base-content/70 hover:text-primary">
+                Terms
+              </Link>
+              <Link href="/risk" className="text-sm text-base-content/70 hover:text-primary">
+                Risk
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

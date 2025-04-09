@@ -273,7 +273,7 @@ contract ZetaOrderBook is UniversalContract {
         // get the owner of the order
         address orderOwner = orders[orderId].owner;
         uint256 usdcAmount = userUsdcBalance[orderOwner];
-        uint256 zetaToBuyAmount = (usdcAmount / targetPriceLow) * 1e18; 
+        uint256 zetaToBuyAmount = usdcAmount * 1e18 / targetPriceLow; 
 
         if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
 

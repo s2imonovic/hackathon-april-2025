@@ -3,7 +3,7 @@ require('@nomicfoundation/hardhat-ethers');
 require("@nomicfoundation/hardhat-web3-v4");
 require('@openzeppelin/hardhat-upgrades')
 require('@nomicfoundation/hardhat-verify');
-require('@tenderly/hardhat-tenderly');
+// require('@tenderly/hardhat-tenderly');
 require('dotenv').config();
 
 // Use the private key that corresponds to address 0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4 (.env) or 0xA9664FDf800930e5E5E879bCf8CE290943F1E30D (old)

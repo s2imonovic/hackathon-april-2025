@@ -3,7 +3,8 @@
         "CallbackConnector": "0x5a8FEE936947cb5F7c9C7DE280F7E4c7Aa88f239"
     },
     "testnet": {
-        "ZetaOrderBook": "0xdF0e05429AE89dae2F33f8914D91acDa621ae643"
+        "ZetaOrderBook": "0xA40f446fFd682EAEE004b2c131ec08166D16d8b2",
+        "CallbackConnector": "0xfc41592E6EBC369f0fa5E879252Bdf89fcfdB4f6"
     },
     "base": {
         "CallbackConnector": "0x667Ff76F4B2A32E1F77B45317fEe05a33a824307"

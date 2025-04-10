@@ -10,6 +10,7 @@ import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 // Replace IZetaSwap with these interfaces
 interface ISwapRouter {
@@ -40,11 +41,11 @@ interface INativeSwapRouter {
     function unwrapExactInputSingle(ISwapRouter.ExactInputSingleParams calldata params) external returns (uint256 amountOut);
 }
 
-contract ZetaOrderBook is UniversalContract {
+contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
     using SafeERC20 for IERC20;
     
-    GatewayZEVM public immutable gateway;
-    IPyth public immutable pythOracle;
+    GatewayZEVM public gateway;
+    IPyth public pythOracle;
     INativeSwapRouter public swapRouter;
 
     // USDC token address
@@ -60,10 +61,7 @@ contract ZetaOrderBook is UniversalContract {
     uint256 public contractUsdcBalance;
 
     // Connected gas token address
-    address public immutable connectedGasZRC20;
-
-    // Contract owner
-    address public owner;
+    address public connectedGasZRC20;
 
     enum OrderType { BUY, SELL }
 
@@ -102,7 +100,6 @@ contract ZetaOrderBook is UniversalContract {
     event HelloEvent(string, string);
     event RevertEvent(string, RevertContext);
     event AbortEvent(string, AbortContext);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     error TransferFailed();
     error Unauthorized();
@@ -112,11 +109,6 @@ contract ZetaOrderBook is UniversalContract {
     error OrderNotActive();
     error InsufficientFunds();
     error SlippageExceeded(uint256 expectedAmount, uint256 receivedAmount, uint256 slippageBps);
-
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert Unauthorized();
-        _;
-    }
 
     modifier onlyGateway() {
         if (msg.sender != address(gateway)) revert Unauthorized();
@@ -128,7 +120,12 @@ contract ZetaOrderBook is UniversalContract {
         _;
     }
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         address payable gatewayAddress,
         address pythOracleAddress,
         address swapRouterAddress,
@@ -136,9 +133,10 @@ contract ZetaOrderBook is UniversalContract {
         bytes32 _zetaPriceId,
         address _callbackChain,
         bytes memory _callbackAddress,
-        address _connectedGasZRC20,
-        address _owner
-    ) {
+        address _connectedGasZRC20
+    ) public initializer {
+        __Ownable_init(msg.sender);
+
         gateway = GatewayZEVM(gatewayAddress);
         pythOracle = IPyth(pythOracleAddress);
         swapRouter = INativeSwapRouter(swapRouterAddress);
@@ -147,22 +145,12 @@ contract ZetaOrderBook is UniversalContract {
         callbackChain = _callbackChain;
         callbackAddress = _callbackAddress;
         connectedGasZRC20 = _connectedGasZRC20;
-        owner = _owner;
-        
+
         // Approve gateway to spend ETH.BASE for gas fees for loop function
         IZRC20(_connectedGasZRC20).approve(
             address(gateway),
             type(uint256).max
         );
-    }
-
-    // Transfer ownership to a new address
-    function transferOwnership(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert Unauthorized();
-        
-        address oldOwner = owner;
-        owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
     }
 
     // Get latest ZETA price from Pyth
@@ -566,7 +554,7 @@ contract ZetaOrderBook is UniversalContract {
         uint256 balance = IZRC20(connectedGasZRC20).balanceOf(address(this));
         if (balance == 0) revert InsufficientFunds();
         
-        if (!IZRC20(connectedGasZRC20).transfer(owner, balance)) {
+        if (!IZRC20(connectedGasZRC20).transfer(owner(), balance)) {
             revert TransferFailed();
         }
     }

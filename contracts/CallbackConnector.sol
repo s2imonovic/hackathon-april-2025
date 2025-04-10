@@ -3,10 +3,10 @@ pragma solidity 0.8.26;
 
 import {RevertContext, RevertOptions} from "@zetachain/protocol-contracts/contracts/Revert.sol";
 import "@zetachain/protocol-contracts/contracts/evm/GatewayEVM.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract CallbackConnector is Ownable {
-    GatewayEVM public immutable gateway;
+contract CallbackConnector is OwnableUpgradeable {
+    GatewayEVM public gateway;
     address public universalContract;
 
     // Events
@@ -22,7 +22,14 @@ contract CallbackConnector is Ownable {
         _;
     }
 
-    constructor(address payable gatewayAddress, address _universalContract) Ownable(msg.sender) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address payable gatewayAddress, address _universalContract) public initializer {
+        __Ownable_init(msg.sender);
+
         gateway = GatewayEVM(gatewayAddress);
         universalContract = _universalContract;
     }

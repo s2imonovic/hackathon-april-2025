@@ -18,7 +18,7 @@ async function main() {
     const pythOracleAddress = network === 'testnet'
         ? "0x0708325268dF9F66270F1401206434524814508b"
         : "0x2880aB155794e7179c9eE2e38200202908C17B43";
-    const swapGateway = "0xCad412df586F187E0D303dD8C5f3603d4c350B5f" // this is actually the Beam NativeSwapRouter. UniswapV2RouterAddress is "0x2ca7d64A7EFE2D62A725E2B35Cf7230D6677FfEe"; // gas stability pools
+    const swapGateway = "0xCad412df586F187E0D303dD8C5f3603d4c350B5f" // this is actually the Beam NativeSwapRouter.
     const tradePairAddress = network === 'testnet'
         ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d" // USDC.SEP
         : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a"; // USDC.ETH
@@ -27,7 +27,7 @@ async function main() {
         ? "0xc0B74d761ef4EC9e9473f65687d36B9F13DB0dCc" // Base Sepolia Connector
         : "0x48B9AACC350b20147001f88821d31731Ba4C30ed"; // Base Gateway
     const connectedGasZRC20 = "0x1de70f3e971B62A0707dA18100392af14f7fB677"; // ETH.BASE token address
-    const ownerAddress = "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"; // Contract owner
+    const ownerAddress = "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"; // Contract owner. TODO: Switch to signer?
 
     const baseNetwork = network === 'testnet' ? 'base_sepolia' : 'base';
     const callbackConnectorAddress = getSavedContractAddresses()[baseNetwork]?.CallbackConnector;

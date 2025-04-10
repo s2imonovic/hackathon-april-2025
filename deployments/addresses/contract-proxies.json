@@ -1,7 +1,7 @@
 {
     "testnet": {
         "ProxyAdmin": "0x3f68ABf94BB388052826b2d6031833f43198C1F9",
-        "ZetaOrderBook": "0xc0561A8Fcd70fC093885BF9Ea3eBF278c4FA4b78",
+        "ZetaOrderBook": "0x0997FC87Eb4f0090A73d74CB611f67B593F7E92D",
         "CallbackConnector": "0xA1A518494a5b964662d2f8F1347d4302bD23d99f"
     }
 }

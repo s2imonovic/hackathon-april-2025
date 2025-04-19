@@ -161,8 +161,8 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         return (uint256(uint64(price.price))/100, price.publishTime);
     }
 
-    // Deposit USDC to the contract
-    function depositUsdc(uint256 amount) external { // user must approve the contract to spend the USDC first
+    // Internal function for USDC deposits
+    function _depositUsdc(uint256 amount) internal {
         if (!IZRC20(usdcToken).transferFrom(msg.sender, address(this), amount)) {
             revert TransferFailed();
         }
@@ -171,12 +171,22 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         emit UsdcDeposited(msg.sender, amount);
     }
 
-    // Deposit ZETA to the contract
-    function depositZeta() external payable {
+    // External function for USDC deposits
+    function depositUsdc(uint256 amount) external {
+        _depositUsdc(amount);
+    }
+
+    // Internal function for ZETA deposits
+    function _depositZeta() internal {
         if (msg.value == 0) revert InsufficientFunds();
         contractZetaBalance += msg.value;
         userZetaBalance[msg.sender] += msg.value;
         emit ZetaDeposited(msg.sender, msg.value);
+    }
+
+    // External function for ZETA deposits
+    function depositZeta() external payable {
+        _depositZeta();
     }
 
     // Withdraw all unlocked USDC from the contract
@@ -210,7 +220,7 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         emit ZetaWithdrawn(msg.sender, amount);
     }
 
-    // Create a sell order for ZETA (native token) for a specific orderId
+    // Internal function for creating sell orders
     function _createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps, uint256 orderId) internal {
         // get the owner of the order
         address orderOwner = orders[orderId].owner;
@@ -218,7 +228,6 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         uint256 zetaToSellAmount = userZetaBalance[orderOwner];
         if (zetaToSellAmount == 0) revert InsufficientFunds();
         if (slippageBps > 1000) revert InvalidOrder(); // Max 10% slippage
-
 
         // Lock ZETA from user's balance
         userZetaBalance[orderOwner] -= zetaToSellAmount;
@@ -241,7 +250,7 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         checkAndExecuteOrder(orderId);
     }
 
-    // Create a sell order for ZETA (native token)
+    // External function for creating sell orders
     function createSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
         // Check if user already has an active order
         if (userActiveOrderId[msg.sender] != 0 && orders[userActiveOrderId[msg.sender]].active) {
@@ -256,7 +265,7 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         _createSellOrder(targetPriceLow, targetPriceHigh, slippageBps, orderId);
     }
 
-    // Create a buy order with USDC
+    // Internal function for creating buy orders
     function _createBuyOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps, uint256 orderId) internal {
         // get the owner of the order
         address orderOwner = orders[orderId].owner;
@@ -286,7 +295,7 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         checkAndExecuteOrder(orderId);
     }
 
-    // Create a buy order with USDC
+    // External function for creating buy orders
     function createBuyOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
         // Check if user already has an active order
         if (userActiveOrderId[msg.sender] != 0 && orders[userActiveOrderId[msg.sender]].active) {
@@ -593,5 +602,39 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
 
     function onAbort(AbortContext calldata context) external onlyGateway {
         emit AbortEvent("Abort on ZetaChain", context);
+    }
+
+    // Deposit ZETA and create a sell order in a single transaction
+    function depositZetaAndCreateSellOrder(uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external payable {
+        // Check if user already has an active order
+        if (userActiveOrderId[msg.sender] != 0 && orders[userActiveOrderId[msg.sender]].active) {
+            revert InvalidOrder();
+        }
+        
+        // Use internal deposit function
+        _depositZeta();
+        
+        // Create order
+        uint256 orderId = nextOrderId++;
+        orders[orderId].owner = msg.sender;
+        userActiveOrderId[msg.sender] = orderId;
+        _createSellOrder(targetPriceLow, targetPriceHigh, slippageBps, orderId);
+    }
+
+    // Deposit USDC and create a buy order in a single transaction
+    function depositUsdcAndCreateBuyOrder(uint256 amount, uint256 targetPriceLow, uint256 targetPriceHigh, uint256 slippageBps) external {
+        // Check if user already has an active order
+        if (userActiveOrderId[msg.sender] != 0 && orders[userActiveOrderId[msg.sender]].active) {
+            revert InvalidOrder();
+        }
+        
+        // Use internal deposit function
+        _depositUsdc(amount);
+        
+        // Create order
+        uint256 orderId = nextOrderId++;
+        orders[orderId].owner = msg.sender;
+        userActiveOrderId[msg.sender] = orderId;
+        _createBuyOrder(targetPriceLow, targetPriceHigh, slippageBps, orderId);
     }
 }

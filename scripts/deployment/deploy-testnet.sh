@@ -8,20 +8,55 @@ extract_address() {
 }
 
 echo "🚀 Starting deployment to Base Sepolia..."
-BASE_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network base_sepolia 2>&1)
-BASE_STATUS=$?
+echo "First deploying ProxyAdmin..."
+ADMIN_OUTPUT=$(npx hardhat run scripts/deployment/deploy-admin.js --network base_sepolia 2>&1)
+ADMIN_STATUS=$?
 
-if [ $BASE_STATUS -ne 0 ]; then
-    echo "❌ Base Sepolia deployment failed:"
-    echo "$BASE_OUTPUT"
+if [ $ADMIN_STATUS -ne 0 ]; then
+    echo "❌ ProxyAdmin deployment failed:"
+    echo "$ADMIN_OUTPUT"
     exit 1
 fi
 
-CALLBACK_CONNECTOR_ADDRESS=$(extract_address "$BASE_OUTPUT" "CallbackConnector deployed to Base Sepolia:")
+ADMIN_ADDRESS=$(extract_address "$ADMIN_OUTPUT" "ProxyAdmin:")
+echo "✅ ProxyAdmin deployment complete"
+echo "ProxyAdmin: $ADMIN_ADDRESS"
+
+echo "Now deploying CallbackConnector..."
+CALLBACK_OUTPUT=$(npx hardhat run scripts/deployment/deploy-callback.js --network base_sepolia 2>&1)
+CALLBACK_STATUS=$?
+
+if [ $CALLBACK_STATUS -ne 0 ]; then
+    echo "❌ CallbackConnector deployment failed:"
+    echo "$CALLBACK_OUTPUT"
+    exit 1
+fi
+
+echo "CallbackConnector output: $CALLBACK_OUTPUT"
+
+CALLBACK_CONNECTOR_ADDRESS=$(extract_address "$CALLBACK_OUTPUT" "CallbackConnector Proxy:")
+CALLBACK_IMPLEMENTATION_ADDRESS=$(extract_address "$CALLBACK_OUTPUT" "CallbackConnector Implementation:")
 echo "✅ Base Sepolia deployment complete"
+echo "CallbackConnector proxy: $CALLBACK_CONNECTOR_ADDRESS"
+echo "CallbackConnector implementation: $CALLBACK_IMPLEMENTATION_ADDRESS"
 
 echo "🚀 Starting deployment to ZetaChain testnet..."
-TESTNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-orderbook.js --network testnet 2>&1)
+echo "First deploying ProxyAdmin to ZetaChain..."
+ZETA_ADMIN_OUTPUT=$(npx hardhat run scripts/deployment/deploy-admin.js --network testnet 2>&1)
+ZETA_ADMIN_STATUS=$?
+
+if [ $ZETA_ADMIN_STATUS -ne 0 ]; then
+    echo "❌ ZetaChain ProxyAdmin deployment failed:"
+    echo "$ZETA_ADMIN_OUTPUT"
+    exit 1
+fi
+
+ZETA_ADMIN_ADDRESS=$(extract_address "$ZETA_ADMIN_OUTPUT" "ProxyAdmin contract deployed to:")
+echo "✅ ZetaChain ProxyAdmin deployment complete"
+echo "ZetaChain ProxyAdmin: $ZETA_ADMIN_ADDRESS"
+
+echo "Now deploying ZetaOrderBook..."
+TESTNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-proxy-orderbook.js --network testnet 2>&1)
 TESTNET_STATUS=$?
 
 if [ $TESTNET_STATUS -ne 0 ]; then
@@ -30,8 +65,12 @@ if [ $TESTNET_STATUS -ne 0 ]; then
     exit 1
 fi
 
-ZETA_ORDERBOOK_ADDRESS=$(extract_address "$TESTNET_OUTPUT" "ZetaOrderBook deployed to ZetaChain testnet:")
+# Extract the proxy address using the actual output pattern from deploy-proxy-orderbook.js
+ZETA_ORDERBOOK_ADDRESS=$(extract_address "$TESTNET_OUTPUT" "ZetaOrderBook:")
+ZETA_ORDERBOOK_IMPLEMENTATION_ADDRESS=$(extract_address "$TESTNET_OUTPUT" "Implementation:")
 echo "✅ ZetaChain testnet deployment complete"
+echo "ZetaOrderBook proxy: $ZETA_ORDERBOOK_ADDRESS"
+echo "ZetaOrderBook implementation: $ZETA_ORDERBOOK_IMPLEMENTATION_ADDRESS"
 
 echo "🚀 Setting universal contract address on Base Sepolia..."
 SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract.js --network base_sepolia 2>&1)
@@ -43,7 +82,61 @@ if [ $SET_UNIVERSAL_STATUS -ne 0 ]; then
     exit 1
 fi
 
+echo "🚀 Verifying contracts on Base Sepolia..."
+echo "Verifying ProxyAdmin..."
+VERIFY_ADMIN_OUTPUT=$(npx hardhat run scripts/deployment/verify-admin.js --network base_sepolia 2>&1)
+VERIFY_ADMIN_STATUS=$?
+
+if [ $VERIFY_ADMIN_STATUS -ne 0 ]; then
+    echo "⚠️ ProxyAdmin verification had issues:"
+    echo "$VERIFY_ADMIN_OUTPUT"
+    # Don't exit here, as verification issues shouldn't stop the deployment
+else
+    echo "✅ ProxyAdmin verification complete"
+fi
+
+echo "Verifying CallbackConnector..."
+VERIFY_CALLBACK_OUTPUT=$(npx hardhat run scripts/deployment/verify-callback-connector.js --network base_sepolia 2>&1)
+VERIFY_CALLBACK_STATUS=$?
+
+if [ $VERIFY_CALLBACK_STATUS -ne 0 ]; then
+    echo "⚠️ CallbackConnector verification had issues:"
+    echo "$VERIFY_CALLBACK_OUTPUT"
+    # Don't exit here, as verification issues shouldn't stop the deployment
+else
+    echo "✅ CallbackConnector verification complete"
+fi
+
+echo "🚀 Verifying contracts on ZetaChain testnet..."
+echo "Verifying ProxyAdmin..."
+VERIFY_ZETA_ADMIN_OUTPUT=$(npx hardhat run scripts/deployment/verify-admin.js --network testnet 2>&1)
+VERIFY_ZETA_ADMIN_STATUS=$?
+
+if [ $VERIFY_ZETA_ADMIN_STATUS -ne 0 ]; then
+    echo "⚠️ ZetaChain ProxyAdmin verification had issues:"
+    echo "$VERIFY_ZETA_ADMIN_OUTPUT"
+    # Don't exit here, as verification issues shouldn't stop the deployment
+else
+    echo "✅ ZetaChain ProxyAdmin verification complete"
+fi
+
+echo "Verifying ZetaOrderBook..."
+VERIFY_OUTPUT=$(npx hardhat run scripts/deployment/verify-proxy-orderbook.js --network testnet 2>&1)
+VERIFY_STATUS=$?
+
+if [ $VERIFY_STATUS -ne 0 ]; then
+    echo "⚠️ ZetaOrderBook verification had issues:"
+    echo "$VERIFY_OUTPUT"
+    # Don't exit here, as verification issues shouldn't stop the deployment
+else
+    echo "✅ ZetaOrderBook verification complete"
+fi
+
 echo "✅ Deployment complete!"
 echo "📝 Contract Addresses:"
-echo "CallbackConnector (Base Sepolia): $CALLBACK_CONNECTOR_ADDRESS"
-echo "ZetaOrderBook (ZetaChain testnet): $ZETA_ORDERBOOK_ADDRESS" 
+echo "ProxyAdmin (Base Sepolia): $ADMIN_ADDRESS"
+echo "CallbackConnector Proxy (Base Sepolia): $CALLBACK_CONNECTOR_ADDRESS"
+echo "CallbackConnector Implementation (Base Sepolia): $CALLBACK_IMPLEMENTATION_ADDRESS"
+echo "ProxyAdmin (ZetaChain testnet): $ZETA_ADMIN_ADDRESS"
+echo "ZetaOrderBook Proxy (ZetaChain testnet): $ZETA_ORDERBOOK_ADDRESS"
+echo "ZetaOrderBook Implementation (ZetaChain testnet): $ZETA_ORDERBOOK_IMPLEMENTATION_ADDRESS" 

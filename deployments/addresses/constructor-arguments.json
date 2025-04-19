@@ -1,0 +1,49 @@
+{
+    "base_sepolia": {
+        "CallbackConnector": [],
+        "CallbackConnectorProxy": [
+            "0xff88f342B86D1E85869d2c170eFAdA15141231e0",
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4",
+            "0x485cc9550000000000000000000000000c487a766110c85d301d96e33579c5b317fa49950000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "ProxyAdmin": [
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"
+        ]
+    },
+    "testnet": {
+        "ZetaOrderBook": [],
+        "ZetaOrderBookProxy": [
+            "0xfCb6954c06Dae48A310B139225561C62E041d4C1",
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4",
+            "0x"
+        ],
+        "ProxyAdmin": [
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"
+        ]
+    },
+    "base": {
+        "CallbackConnector": [],
+        "CallbackConnectorProxy": [
+            "0xd99Abb96a881eA7831d53Db62F243C856c651172",
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4",
+            "0x485cc95500000000000000000000000048b9aacc350b20147001f88821d31731ba4c30ed0000000000000000000000000000000000000000000000000000000000000000"
+        ],
+        "ProxyAdmin": [
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"
+        ]
+    },
+    "mainnet": {
+        "ZetaOrderBook": [],
+        "ZetaOrderBookProxy": [
+            "0xFFfB1A6B0aCcE50F0c85AA581f5cE0c81015761E",
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4",
+            "0x",
+            {
+                "gasPrice": 15150000000
+            }
+        ],
+        "ProxyAdmin": [
+            "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"
+        ]
+    }
+}

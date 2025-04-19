@@ -14,43 +14,41 @@ async function main() {
     // Get the deployed contract address
     console.log("📝 Loading saved addresses...");
     const savedProxies = getSavedContractProxies();
-    const callbackConnectorAddress = savedProxies[network]?.CallbackConnector;
+    const proxyAdminAddress = savedProxies[network]?.ProxyAdmin;
     
-    if (!callbackConnectorAddress) {
-        throw new Error(`CallbackConnector address not found for ${network}`);
+    if (!proxyAdminAddress) {
+        throw new Error(`ProxyAdmin address not found for ${network}`);
     }
-    console.log(`✅ Found CallbackConnector proxy at: ${callbackConnectorAddress}`);
+    console.log(`✅ Found ProxyAdmin at: ${proxyAdminAddress}`);
     
-    // Get the implementation address
-    const savedImplementations = getSavedImplementationAddresses();
-    const implementationAddress = savedImplementations[network]?.CallbackConnector;
+    // Get the saved constructor arguments for this network
+    const savedConstructorArgs = getSavedConstructorArguments();
+    let constructorArgs = savedConstructorArgs[network]?.ProxyAdmin;
     
-    if (!implementationAddress) {
-        throw new Error(`CallbackConnector implementation address not found for ${network}`);
+    // If no saved constructor arguments, use deployer address
+    if (!constructorArgs) {
+        const [deployer] = await hre.ethers.getSigners();
+        constructorArgs = [deployer.address];
     }
-    console.log(`✅ Found implementation at: ${implementationAddress}`);
     
-    // Verify the contract exists at the implementation address
-    console.log("🔍 Verifying contract exists at implementation address...");
-    const code = await hre.ethers.provider.getCode(implementationAddress);
-    if (code === '0x') {
-        throw new Error(`No contract code found at implementation address ${implementationAddress}. The contract may not have been deployed successfully.`);
-    }
-    console.log("✅ Contract code exists at implementation address");
-    
-    // For the implementation contract, we need to use empty constructor arguments
-    // since the CallbackConnector has an empty constructor
-    const constructorArgs = [];
-    console.log(`✅ Using empty constructor arguments for implementation contract`);
+    console.log(`✅ Using constructor arguments for ProxyAdmin:`, JSON.stringify(constructorArgs));
     
     // Verify contract
     console.log("\n🔍 Starting contract verification...");
     console.log(`🔍 VERIFICATION DETAILS:`);
-    console.log(`🔍 Contract Address: ${implementationAddress}`);
+    console.log(`🔍 Contract Address: ${proxyAdminAddress}`);
     console.log(`🔍 Constructor Arguments: ${JSON.stringify(constructorArgs)}`);
-    console.log(`🔍 Contract Name: CallbackConnector`);
+    console.log(`🔍 Contract Name: ProxyAdmin`);
     
-    await verifyWithRetries(implementationAddress, constructorArgs, "CallbackConnector");
+    // Verify the contract exists at the address
+    console.log("🔍 Verifying contract exists at address...");
+    const code = await hre.ethers.provider.getCode(proxyAdminAddress);
+    if (code === '0x') {
+        throw new Error(`No contract code found at address ${proxyAdminAddress}. The contract may not have been deployed successfully.`);
+    }
+    console.log("✅ Contract code exists at address");
+    
+    await verifyWithRetries(proxyAdminAddress, constructorArgs, "ProxyAdmin");
 }
 
 // Helper function to verify contract with retries
@@ -131,6 +129,10 @@ function getContractUrl(network, address) {
         return `https://base-sepolia.blockscout.com/address/${address}?tab=contract`;
     } else if (network === 'base') {
         return `https://basescan.org/address/${address}`;
+    } else if (network === 'testnet') {
+        return `https://explorer.testnet.zetachain.com/address/${address}?tab=contract`;
+    } else if (network === 'mainnet') {
+        return `https://explorer.zetachain.com/address/${address}?tab=contract`;
     }
     return '';
 }

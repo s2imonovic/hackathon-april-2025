@@ -1,6 +1,9 @@
 const hre = require("hardhat");
 
-const { saveContractProxies} = require('../helpers/utils');
+const { 
+    saveContractProxies,
+    saveConstructorArguments
+} = require('../helpers/utils');
 const { calculateGasPrice } = require('../helpers/ethereum');
 const delay = ms => new Promise(res => setTimeout(res, ms));
 const delayLength = 6000;
@@ -11,12 +14,21 @@ async function main() {
     const finalGasPrice = await calculateGasPrice();
     const network = hre.network.name;
 
+    // Set the owner address to the deployer's address
+    const [deployer] = await hre.ethers.getSigners();
+    const ownerAddress = deployer.address;
+
+    // Save the constructor arguments before deployment
+    const constructorArgs = [ownerAddress];
+    saveConstructorArguments(network, 'ProxyAdmin', constructorArgs);
+    console.log("ProxyAdmin constructor arguments saved:", JSON.stringify(constructorArgs));
+
     const ProxyAdmin = await hre.ethers.getContractFactory("@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol:ProxyAdmin");
     const proxyAdmin = await ProxyAdmin.deploy(
-        '0xEbA816378707e47f18320e672603c7790058a936',
+        ownerAddress,
         {gasPrice: finalGasPrice}
     );
-    console.log("ProxyAdmin contract deployed to: ", proxyAdmin.target);
+    console.log("ProxyAdmin: ", proxyAdmin.target);
     saveContractProxies(hre.network.name, 'ProxyAdmin', proxyAdmin.target);
 
     await delay(delayLength);

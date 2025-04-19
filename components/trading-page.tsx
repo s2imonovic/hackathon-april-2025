@@ -11,11 +11,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart3 } from "lucide-react"
 import { useAccount, useWriteContract, useReadContract } from "wagmi"
 import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
-import contractAddresses from "@/deployments/addresses/contract-addresses.json"
+import contractProxies from "@/deployments/addresses/contract-proxies.json"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
+// Define types for the contract proxies
+type NetworkType = 'testnet' | 'mainnet' | 'base_sepolia' | 'base';
+type ContractProxiesType = {
+  [key in NetworkType]?: {
+    ProxyAdmin?: string;
+    ZetaOrderBook?: string;
+    CallbackConnector?: string;
+  };
+};
+
+// Determine which network to use based on environment
+const isTestnet = process.env.NEXT_PUBLIC_USE_TESTNET === 'true'
+const network = isTestnet ? 'testnet' : 'mainnet'
+
+// Get the contract address from the proxy addresses
+const typedProxies = contractProxies as ContractProxiesType;
+const zetaOrderBookAddress = typedProxies[network]?.ZetaOrderBook as `0x${string}` || '0x0000000000000000000000000000000000000000'
+
+// Use the ABI from the mainnet contract (should be the same for both networks)
 const zetaOrderBookABI = contractAbis.mainnet.ZetaOrderBook.abi
-const zetaOrderBookAddress = contractAddresses.mainnet.ZetaOrderBook as `0x${string}`
 
 // Check if deposits are enabled
 const DEPOSITS_ENABLED = process.env.NEXT_PUBLIC_DEPOSITS_ENABLED === "true"

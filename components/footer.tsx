@@ -3,12 +3,28 @@
 import Link from "next/link"
 import { Github, Twitter, DiscIcon as Discord, Copy } from "lucide-react"
 import { Button } from "./ui/button"
-import contractAddresses from "@/deployments/addresses/contract-addresses.json"
+import contractProxies from "@/deployments/addresses/contract-proxies.json"
+
+// Define types for the contract proxies
+type NetworkType = 'testnet' | 'mainnet' | 'base_sepolia' | 'base';
+type ContractProxiesType = {
+  [key in NetworkType]?: {
+    ProxyAdmin?: string;
+    ZetaOrderBook?: string;
+    CallbackConnector?: string;
+  };
+};
 
 export function Footer() {
+  const isTestnet = process.env.NEXT_PUBLIC_USE_TESTNET === 'true'
+  const network = isTestnet ? 'testnet' : 'mainnet'
+  const baseNetwork = isTestnet ? 'base_sepolia' : 'base'
+  
+  const typedProxies = contractProxies as ContractProxiesType;
+  
   const contracts = {
-    orderBook: contractAddresses.mainnet.ZetaOrderBook,
-    callbackConnector: contractAddresses.base.CallbackConnector,
+    orderBook: typedProxies[network]?.ZetaOrderBook || 'Not deployed',
+    callbackConnector: typedProxies[baseNetwork]?.CallbackConnector || 'Not deployed',
   }
 
   const copyAddress = (address: string) => {
@@ -18,15 +34,16 @@ export function Footer() {
   const getNetworkPrefix = (name: string) => {
     switch (name) {
       case 'orderBook':
-        return 'zetachain:'
+        return isTestnet ? 'zetachain-testnet:' : 'zetachain:'
       case 'callbackConnector':
-        return 'base:'
+        return isTestnet ? 'base-sepolia:' : 'base:'
       default:
         return ''
     }
   }
 
   const formatAddress = (address: string) => {
+    if (address === 'Not deployed') return 'Not deployed';
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
@@ -81,17 +98,38 @@ export function Footer() {
                 <li key={name} className="flex items-center gap-2">
                   <span className="text-base-content/70 capitalize">{name}:</span>
                   <code className="text-xs bg-base-200 text-base-content px-2 py-0.5 rounded-full">{getNetworkPrefix(name)}{formatAddress(address)}</code>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-7 text-base-content/70 hover:text-black p-0"
-                    onClick={() => copyAddress(address)}
-                  >
-                    <Copy className="h-2 w-2" />
-                  </Button>
+                  {address !== 'Not deployed' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-7 text-base-content/70 hover:text-black p-0"
+                      onClick={() => copyAddress(address)}
+                    >
+                      <Copy className="h-2 w-2" />
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 pt-2 border-t border-base-300">
+                <h4 className="text-sm font-bold text-base-content/70 mb-2">Environment</h4>
+                <ul className="space-y-1 text-xs">
+                  <li className="flex items-center gap-2">
+                    <span className="text-base-content/70">Testnet:</span>
+                    <code className="bg-base-200 text-base-content px-2 py-0.5 rounded-full">
+                      {isTestnet ? 'Enabled' : 'Disabled'}
+                    </code>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-base-content/70">Deposits:</span>
+                    <code className="bg-base-200 text-base-content px-2 py-0.5 rounded-full">
+                      {process.env.NEXT_PUBLIC_DEPOSITS_ENABLED === 'true' ? 'Enabled' : 'Disabled'}
+                    </code>
+                  </li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-12 pt-8 border-t border-base-300">

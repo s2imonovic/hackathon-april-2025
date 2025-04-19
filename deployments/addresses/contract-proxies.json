@@ -1,7 +1,19 @@
 {
     "testnet": {
-        "ProxyAdmin": "0x3f68ABf94BB388052826b2d6031833f43198C1F9",
-        "ZetaOrderBook": "0x0997FC87Eb4f0090A73d74CB611f67B593F7E92D",
+        "ProxyAdmin": "0xf043C518fF1DD70AF85c91b0A870Da74C89198b7",
+        "ZetaOrderBook": "0x87eA3109017B0a4D4a0d095F4f489d38256651b4",
         "CallbackConnector": "0xA1A518494a5b964662d2f8F1347d4302bD23d99f"
+    },
+    "base_sepolia": {
+        "CallbackConnector": "0xB55E9DeD45fFa5d1523222513c317Ed4B23bc144",
+        "ProxyAdmin": "0x248dB3B9b7223c07924DbF4c2d7830a0C731A61E"
+    },
+    "base": {
+        "ProxyAdmin": "0x51BE1B3b701Ac2Fe6C5c1d90014138A081C5738D",
+        "CallbackConnector": "0x3bf39dd6b978b6f8b196828d1285F329A4F871E4"
+    },
+    "mainnet": {
+        "ProxyAdmin": "0x8a90a377e5CC3e6a661A5b77356906eb75e8fEF6",
+        "ZetaOrderBook": "0x21450A4Dab9ffF73256AFd7f4028A4644f18da0E"
     }
 }

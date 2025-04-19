@@ -1,89 +1,150 @@
 const hre = require("hardhat");
-const { getSavedContractAddresses, getSavedContractProxies } = require('../helpers/utils');
+const { 
+    getSavedContractProxies, 
+    getSavedImplementationAddresses,
+    getSavedConstructorArguments
+} = require('../helpers/utils');
 
 async function main() {
-  const network = hre.network.name;
-  console.log(`Verifying contracts on network: ${network}`);
+    console.log("🔍 Starting verification process...");
+    
+    const network = hre.network.name;
+    console.log(`\n🔍 Network: ${network}`);
+    
+    // Get the deployed contract address
+    console.log("📝 Loading saved addresses...");
+    const savedProxies = getSavedContractProxies();
+    const zetaOrderBookAddress = savedProxies[network]?.ZetaOrderBook;
+    
+    if (!zetaOrderBookAddress) {
+        throw new Error(`ZetaOrderBook address not found for ${network}`);
+    }
+    console.log(`✅ Found ZetaOrderBook proxy at: ${zetaOrderBookAddress}`);
 
-  // Get contract addresses
-  const zetaOrderBookAddress = getSavedContractAddresses()[network]?.ZetaOrderBook;
-  const proxyAddress = getSavedContractProxies()[network]?.ZetaOrderBook;
+    // Get the saved constructor arguments for this network
+    const savedConstructorArgs = getSavedConstructorArguments();
+    let proxyConstructorArgs = savedConstructorArgs[network]?.ZetaOrderBookProxy;
 
-  if (!zetaOrderBookAddress || !proxyAddress) {
-    throw new Error(`Contract addresses not found for ${network}`);
-  }
+    console.log(`✅ Using saved constructor arguments for proxy contract: ${JSON.stringify(proxyConstructorArgs)}`);
+    
+    // Verify contract
+    console.log("\n🔍 Starting contract verification...");
+    console.log(`🔍 VERIFICATION DETAILS:`);
+    console.log(`🔍 Contract Address: ${zetaOrderBookAddress}`);
+    console.log(`🔍 Constructor Arguments: ${JSON.stringify(proxyConstructorArgs)}`);
+    console.log(`🔍 Contract Name: ZetaOrderBook Proxy`);
+    
+    await verifyWithRetries(zetaOrderBookAddress, proxyConstructorArgs, "ZetaOrderBook Proxy");
+    
+    // Get the implementation address
+    const savedImplementations = getSavedImplementationAddresses();
+    const implementationAddress = savedImplementations[network]?.ZetaOrderBook;
+    
+    if (!implementationAddress) {
+        throw new Error(`ZetaOrderBook implementation address not found for ${network}`);
+    }
+    console.log(`✅ Found implementation at: ${implementationAddress}`);
+    
+    // For the implementation contract, we need to use empty constructor arguments
+    // since the ZetaOrderBook has an empty constructor
+    const constructorArgs = [];
+    console.log(`✅ Using empty constructor arguments for implementation contract`);
+    
+    // Verify contract
+    console.log("\n🔍 Starting contract verification...");
+    console.log(`🔍 VERIFICATION DETAILS:`);
+    console.log(`🔍 Contract Address: ${implementationAddress}`);
+    console.log(`🔍 Constructor Arguments: ${JSON.stringify(constructorArgs)}`);
+    console.log(`🔍 Contract Name: ZetaOrderBook`);
+    
+    await verifyWithRetries(implementationAddress, constructorArgs, "ZetaOrderBook");
+}
 
-  console.log(`ZetaOrderBook implementation: ${zetaOrderBookAddress}`);
-  console.log(`ZetaOrderBook proxy: ${proxyAddress}`);
+// Helper function to verify contract with retries
+async function verifyWithRetries(address, constructorArguments, contractName, maxRetries = 10) {
+    const network = hre.network.name;
+    const contractUrl = getContractUrl(network, address);
 
-  // Verify implementation contract
-  try {
-    console.log("Verifying ZetaOrderBook implementation...");
-    await hre.run("verify:verify", {
-      address: zetaOrderBookAddress,
-      constructorArguments: [],
-    });
-    console.log("✅ ZetaOrderBook implementation verified");
-  } catch (error) {
-    console.error("Error verifying implementation:", error.message);
-  }
+    // Skip verification if no API key is set
+    if (!process.env.BLOCKSCOUT_API_KEY) {
+        console.log("⚠️  No API key found. Skipping verification.");
+        console.log(`View contract at: ${contractUrl}`);
+        return;
+    }
 
-  // Get constructor arguments for proxy
-  const gatewayAddress = network === 'testnet'
-    ? "0x6c533f7fe93fae114d0954697069df33c9b74fd7"
-    : "0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E";
-  const pythOracleAddress = network === 'testnet'
-    ? "0x0708325268dF9F66270F1401206434524814508b"
-    : "0x2880aB155794e7179c9eE2e38200202908C17B43";
-  const swapGateway = "0xCad412df586F187E0D303dD8C5f3603d4c350B5f";
-  const tradePairAddress = network === 'testnet'
-    ? "0xcC683A782f4B30c138787CB5576a86AF66fdc31d"
-    : "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a";
-  const zetaPriceId = "0xb70656181007f487e392bf0d92e55358e9f0da5da6531c7c4ce7828aa11277fe";
-  const baseGatewayAddress = network === 'testnet'
-    ? "0xc0B74d761ef4EC9e9473f65687d36B9F13DB0dCc"
-    : "0x48B9AACC350b20147001f88821d31731Ba4C30ed";
-  const connectedGasZRC20 = "0x1de70f3e971B62A0707dA18100392af14f7fB677";
-  const ownerAddress = "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4";
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            console.log(`Verifying contract (attempt ${i + 1}/${maxRetries})...`);
+            console.log(`🔍 Attempting to verify address: ${address}`);
+            console.log(`🔍 With constructor arguments: ${JSON.stringify(constructorArguments)}`);
+            
+            await hre.run("verify:verify", {
+                address,
+                constructorArguments,
+            });
+            console.log("Contract verified successfully");
+            console.log(`View contract at: ${contractUrl}`);
+            return;
+        } catch (error) {
+            if (error.message.includes("already verified")) {
+                console.log("Contract is already verified");
+                console.log(`View contract at: ${contractUrl}`);
+                return;
+            }
+            
+            // Check for rate limit error (429)
+            if (error.message.includes("429") || error.message.includes("rate limit")) {
+                const delay = Math.min(30 * Math.pow(2, i), 150); // Exponential backoff with 2.5 min cap
+                console.log(`Rate limited. Waiting ${delay} seconds before retry...`);
+                
+                // Visual progress indicator
+                const startTime = Date.now();
+                const endTime = startTime + (delay * 1000);
+                const progressBarLength = 20;
+                
+                while (Date.now() < endTime) {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(1, elapsed / (delay * 1000));
+                    const filledLength = Math.floor(progress * progressBarLength);
+                    const emptyLength = progressBarLength - filledLength;
+                    
+                    const filledBar = '█'.repeat(filledLength);
+                    const emptyBar = '░'.repeat(emptyLength);
+                    const percentage = Math.floor(progress * 100);
+                    
+                    process.stdout.write(`\r⏳ Waiting: [${filledBar}${emptyBar}] ${percentage}%`);
+                    await sleep(1000);
+                }
+                process.stdout.write('\n');
+                continue;
+            }
+            
+            console.error(`Verification attempt ${i + 1} failed:`, error.message);
+            if (i < maxRetries - 1) {
+                console.log("Waiting 7 seconds before retrying...");
+                await sleep(7000);
+            }
+        }
+    }
+    throw new Error(`Failed to verify contract after ${maxRetries} attempts`);
+}
 
-  const baseNetwork = network === 'testnet' ? 'base_sepolia' : 'base';
-  const callbackConnectorAddress = getSavedContractAddresses()[baseNetwork]?.CallbackConnector;
-  if (!callbackConnectorAddress) {
-    throw new Error(`CallbackConnector address not found for ${baseNetwork}`);
-  }
+// Helper function to sleep
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Verify proxy contract
-  try {
-    console.log("Verifying ZetaOrderBook proxy...");
-    await hre.run("verify:verify", {
-      address: proxyAddress,
-      constructorArguments: [
-        zetaOrderBookAddress,
-        ownerAddress,
-        hre.ethers.AbiCoder.defaultAbiCoder().encode(
-          ['address', 'address', 'address', 'address', 'bytes32', 'address', 'bytes', 'address'],
-          [
-            gatewayAddress,
-            pythOracleAddress,
-            swapGateway,
-            tradePairAddress,
-            zetaPriceId,
-            baseGatewayAddress,
-            callbackConnectorAddress,
-            connectedGasZRC20
-          ]
-        )
-      ],
-    });
-    console.log("✅ ZetaOrderBook proxy verified");
-  } catch (error) {
-    console.error("Error verifying proxy:", error.message);
-  }
+// Helper function to get contract URL
+function getContractUrl(network, address) {
+    if (network === 'testnet') {
+        return `https://explorer.testnet.zetachain.com/address/${address}?tab=contract`;
+    } else if (network === 'mainnet') {
+        return `https://explorer.zetachain.com/address/${address}?tab=contract`;
+    }
+    return '';
 }
 
 main()
-  .then(() => process.exit(0))
-  .catch(error => {
-    console.error(error);
-    process.exit(1);
-  }); 
+    .then(() => process.exit(0))
+    .catch((error) => {
+        console.error(error);
+        process.exit(1);
+    }); 

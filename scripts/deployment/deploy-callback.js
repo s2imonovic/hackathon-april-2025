@@ -48,8 +48,10 @@ async function main() {
     saveImplementationAddress(network, 'CallbackConnector', callbackConnector.target);
     console.log("Implementation: ", callbackConnector.target);
     
-    // Save the contract address (for backward compatibility)
-    saveContractAddress(hre.network.name, 'CallbackConnector', callbackConnector.target);
+    // // Save the contract address (for backward compatibility)
+    // saveContractAddress(hre.network.name, 'CallbackConnector', callbackConnector.target);
+    
+    // Save the contract ABI
     saveContractAbi(hre.network.name, 'CallbackConnector', (await hre.artifacts.readArtifact("CallbackConnector")));
 
     // Save empty constructor arguments for the implementation contract
@@ -96,7 +98,7 @@ async function main() {
     
     // Output the implementation address for the deployment script to capture
     console.log("CallbackConnector Implementation: " + callbackConnector.target);
-    console.log("CallbackConnector Proxy: " + proxy.target);
+    console.log("Proxy: " + proxy.target);
 }
 
 

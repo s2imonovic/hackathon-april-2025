@@ -132,6 +132,18 @@ else
     echo "✅ ZetaOrderBook verification complete"
 fi
 
+echo "🚀 Initializing ZetaOrderBook on ZetaChain mainnet..."
+INITIALIZE_OUTPUT=$(npx hardhat run scripts/deployment/initialize-orderbook.js --network mainnet 2>&1)
+INITIALIZE_STATUS=$?
+
+if [ $INITIALIZE_STATUS -ne 0 ]; then
+    echo "❌ ZetaOrderBook initialization failed:"
+    echo "$INITIALIZE_OUTPUT"
+    exit 1
+fi
+
+echo "✅ ZetaOrderBook initialization complete"
+
 echo "✅ Deployment complete!"
 echo "📝 Contract Addresses:"
 echo "ProxyAdmin (Base Mainnet): $ADMIN_ADDRESS"

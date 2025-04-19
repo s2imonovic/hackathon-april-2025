@@ -38,8 +38,7 @@ export function HeroSection() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                ZetaHopper executes trades fully on-chain with advanced algorithms. Just set your amount and let our bot
-                maximize your returns on Zetachain.
+                We harnessed the power of ZetaChain's crosschain architecture to create a truly autonomous range trading system.
               </motion.p>
             </div>
             <motion.div

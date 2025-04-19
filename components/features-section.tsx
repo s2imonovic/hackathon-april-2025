@@ -8,7 +8,7 @@ export function FeaturesSection() {
     {
       icon: <Bot className="h-10 w-10 text-primary" />,
       title: "Automated Trading",
-      description: "Our bot handles all trading operations automatically with no manual intervention required.",
+      description: "Our system handles all trading operations automatically with no manual intervention required.",
     },
     {
       icon: <Shield className="h-10 w-10 text-primary" />,
@@ -18,7 +18,7 @@ export function FeaturesSection() {
     {
       icon: <Coins className="h-10 w-10 text-primary" />,
       title: "Multi-Asset Support",
-      description: "Trade across multiple tokens and pairs on Zetachain's ecosystem.",
+      description: "Soon you can trade across multiple tokens and pairs on Zetachain's ecosystem.",
     },
   ]
 
@@ -57,7 +57,10 @@ export function FeaturesSection() {
               Why ZetaHopper?
             </h2>
             <p className="max-w-[900px] text-base-content/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-            Our cutting-edge trading bot operates entirely on-chain, ensuring unmatched security and eliminating the need for external infrastructure. With multi-chain support, ZetaHopper empowers you to trade seamlessly across multiple blockchain networks.
+            Our innovative dual-contract design calls itself in a continuous loop. Skip the traditional automation plumbing—no API keys to secure, no scripts to maintain, no devices to keep online.
+            </p>
+            <p className="max-w-[900px] text-base-content/90 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed font-bold italic pl-4 py-2 my-4 bg-base-200 rounded-md">
+            ZetaHopper is pure, on-chain automation that executes trades like clockwork.
             </p>
           </div>
         </motion.div>

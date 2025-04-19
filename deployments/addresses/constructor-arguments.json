@@ -24,7 +24,7 @@
     "base": {
         "CallbackConnector": [],
         "CallbackConnectorProxy": [
-            "0xd99Abb96a881eA7831d53Db62F243C856c651172",
+            "0x7f9db1757BE26c5Fc4390EA29c4c5624Dc1E762c",
             "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4",
             "0x485cc95500000000000000000000000048b9aacc350b20147001f88821d31731ba4c30ed0000000000000000000000000000000000000000000000000000000000000000"
         ],
@@ -35,12 +35,9 @@
     "mainnet": {
         "ZetaOrderBook": [],
         "ZetaOrderBookProxy": [
-            "0xFFfB1A6B0aCcE50F0c85AA581f5cE0c81015761E",
+            "0x419f46c0a2538d981f0B3b553F9e433E4c216cF3",
             "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4",
-            "0x",
-            {
-                "gasPrice": 15150000000
-            }
+            "0x"
         ],
         "ProxyAdmin": [
             "0xd2c1C15160B20d8D48765e49E13f92C7F2fF98E4"

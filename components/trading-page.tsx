@@ -551,7 +551,7 @@ useEffect(() => {
                 Start Trading Now
               </h1>
               <p className="max-w-[900px] text-base-content/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Set your parameters and let ZetaHopper&apos;s advanced algorithms maximize your returns on Zetachain.
+                Set your price range and let ZetaHopper automatically buy low and sell high on Zetachain.
               </p>
             </div>
           </motion.div>
@@ -829,7 +829,7 @@ useEffect(() => {
 
                     {/* Cancel Order Tab */}
                     <TabsContent value="cancel" className="space-y-6">
-                      {userActiveOrderIdData && userActiveOrderIdData.toString() !== "0" && currentOrderData ? (
+                      {currentOrderData && currentOrderData[7] === true ? (
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -1054,7 +1054,7 @@ useEffect(() => {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    {userActiveOrderIdData && userActiveOrderIdData.toString() !== "0" && currentOrderData ? (
+                    {currentOrderData && currentOrderData[7] === true ? (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-base-content">Order ID</span>

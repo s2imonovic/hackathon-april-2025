@@ -9,11 +9,11 @@
         "ProxyAdmin": "0x248dB3B9b7223c07924DbF4c2d7830a0C731A61E"
     },
     "base": {
-        "ProxyAdmin": "0x51BE1B3b701Ac2Fe6C5c1d90014138A081C5738D",
-        "CallbackConnector": "0x3bf39dd6b978b6f8b196828d1285F329A4F871E4"
+        "ProxyAdmin": "0x7c9C69C9972023D36bDC7c174BAB014F3D850D16",
+        "CallbackConnector": "0x94A397C9225ae5C14D618D68d8d9771e17d1675a"
     },
     "mainnet": {
-        "ProxyAdmin": "0x8a90a377e5CC3e6a661A5b77356906eb75e8fEF6",
-        "ZetaOrderBook": "0x21450A4Dab9ffF73256AFd7f4028A4644f18da0E"
+        "ProxyAdmin": "0x59B9d1ceD5A7D79a972147B4cDDA6fdf03F8b78E",
+        "ZetaOrderBook": "0xF0f7E9b24776FA1c135974Da07D115b5512a1D99"
     }
 }

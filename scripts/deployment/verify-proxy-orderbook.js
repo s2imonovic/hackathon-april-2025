@@ -14,32 +14,53 @@ async function main() {
     // Get the deployed contract address
     console.log("📝 Loading saved addresses...");
     const savedProxies = getSavedContractProxies();
-    const callbackConnectorAddress = savedProxies[network]?.CallbackConnector;
+    const zetaOrderBookAddress = savedProxies[network]?.ZetaOrderBook;
+    const TransparentUpgradeableProxyAddress = savedProxies[network]?.ZetaOrderBook;
     
-    if (!callbackConnectorAddress) {
-        throw new Error(`CallbackConnector address not found for ${network}`);
+    if (!zetaOrderBookAddress) {
+        throw new Error(`ZetaOrderBook address not found for ${network}`);
     }
-    console.log(`✅ Found CallbackConnector proxy at: ${callbackConnectorAddress}`);
+    console.log(`✅ Found ZetaOrderBook proxy at: ${zetaOrderBookAddress}`);
+    // if (!TransparentUpgradeableProxyAddress) {
+    //     throw new Error(`TransparentUpgradeableProxy address not found for ${network}`);
+    // }
+    // console.log(`✅ Found TransparentUpgradeableProxy at: ${TransparentUpgradeableProxyAddress}`);
+
+    // Get the saved constructor arguments for this network
+    const savedConstructorArgs = getSavedConstructorArguments();
+    let proxyConstructorArgs = savedConstructorArgs[network]?.ZetaOrderBookProxy;
+    // let transparentUpgradeableProxyConstructorArgs = savedConstructorArgs[network]?.ZetaOrderBookProxy;
+
+    console.log(`✅ Using saved constructor arguments for proxy contract: ${JSON.stringify(proxyConstructorArgs)}`);
+    // console.log(`✅ Using saved constructor arguments for transparent upgradeable proxy contract: ${JSON.stringify(transparentUpgradeableProxyConstructorArgs)}`);
+    // Verify contract
+    console.log("\n🔍 Starting Proxy contract verification...");
+    console.log(`🔍 VERIFICATION DETAILS:`);
+    console.log(`🔍 Contract Address: ${zetaOrderBookAddress}`);
+    console.log(`🔍 Constructor Arguments: ${JSON.stringify(proxyConstructorArgs)}`);
+    console.log(`🔍 Contract Name: ZetaOrderBook Proxy`);
+    
+    await verifyWithRetries(zetaOrderBookAddress, proxyConstructorArgs, "ZetaOrderBook Proxy");
+
+    // console.log("\n🔍 Starting TransparentUpgradeableProxy contract verification...");
+    // console.log(`🔍 VERIFICATION DETAILS:`);
+    // console.log(`🔍 Contract Address: ${TransparentUpgradeableProxyAddress}`);
+    // console.log(`🔍 Constructor Arguments: ${JSON.stringify(transparentUpgradeableProxyConstructorArgs)}`);
+    // console.log(`🔍 Contract Name: TransparentUpgradeableProxy`);
+
+    // await verifyWithRetries(TransparentUpgradeableProxyAddress, transparentUpgradeableProxyConstructorArgs, "TransparentUpgradeableProxy");
     
     // Get the implementation address
     const savedImplementations = getSavedImplementationAddresses();
-    const implementationAddress = savedImplementations[network]?.CallbackConnector;
+    const implementationAddress = savedImplementations[network]?.ZetaOrderBook;
     
     if (!implementationAddress) {
-        throw new Error(`CallbackConnector implementation address not found for ${network}`);
+        throw new Error(`ZetaOrderBook implementation address not found for ${network}`);
     }
     console.log(`✅ Found implementation at: ${implementationAddress}`);
     
-    // Verify the contract exists at the implementation address
-    console.log("🔍 Verifying contract exists at implementation address...");
-    const code = await hre.ethers.provider.getCode(implementationAddress);
-    if (code === '0x') {
-        throw new Error(`No contract code found at implementation address ${implementationAddress}. The contract may not have been deployed successfully.`);
-    }
-    console.log("✅ Contract code exists at implementation address");
-    
     // For the implementation contract, we need to use empty constructor arguments
-    // since the CallbackConnector has an empty constructor
+    // since the ZetaOrderBook has an empty constructor
     const constructorArgs = [];
     console.log(`✅ Using empty constructor arguments for implementation contract`);
     
@@ -48,9 +69,9 @@ async function main() {
     console.log(`🔍 VERIFICATION DETAILS:`);
     console.log(`🔍 Contract Address: ${implementationAddress}`);
     console.log(`🔍 Constructor Arguments: ${JSON.stringify(constructorArgs)}`);
-    console.log(`🔍 Contract Name: CallbackConnector`);
+    console.log(`🔍 Contract Name: ZetaOrderBook`);
     
-    await verifyWithRetries(implementationAddress, constructorArgs, "CallbackConnector");
+    await verifyWithRetries(implementationAddress, constructorArgs, "ZetaOrderBook");
 }
 
 // Helper function to verify contract with retries
@@ -59,7 +80,7 @@ async function verifyWithRetries(address, constructorArguments, contractName, ma
     const contractUrl = getContractUrl(network, address);
 
     // Skip verification if no API key is set
-    if (!process.env.BASESCAN_API_KEY && !process.env.BLOCKSCOUT_API_KEY) {
+    if (!process.env.BLOCKSCOUT_API_KEY) {
         console.log("⚠️  No API key found. Skipping verification.");
         console.log(`View contract at: ${contractUrl}`);
         return;
@@ -127,10 +148,10 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper function to get contract URL
 function getContractUrl(network, address) {
-    if (network === 'base_sepolia') {
-        return `https://base-sepolia.blockscout.com/address/${address}?tab=contract`;
-    } else if (network === 'base') {
-        return `https://basescan.org/address/${address}`;
+    if (network === 'testnet') {
+        return `https://explorer.testnet.zetachain.com/address/${address}?tab=contract`;
+    } else if (network === 'mainnet') {
+        return `https://explorer.zetachain.com/address/${address}?tab=contract`;
     }
     return '';
 }

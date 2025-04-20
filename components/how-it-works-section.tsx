@@ -12,8 +12,8 @@ export function HowItWorksSection() {
     },
     {
       icon: <Bot className="h-10 w-10 text-primary" />,
-      title: "Set Trading Amount",
-      description: "Specify how much you want to trade and let our bot handle the rest.",
+      title: "Set Trading Range",
+      description: "Specify how much you want to trade inside your range, and let the smart contracts do the rest.",
     },
     {
       icon: <BarChart3 className="h-10 w-10 text-primary" />,
@@ -38,7 +38,7 @@ export function HowItWorksSection() {
             </div>
             <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-base-content">How ZetaHopper Works</h2>
             <p className="max-w-[900px] text-base-content/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              Get started with ZetaHopper in just three simple steps and let our bot do the heavy lifting.
+              Get started with ZetaHopper in just three simple steps and let the smart contracts do the heavy lifting.
             </p>
           </div>
         </motion.div>

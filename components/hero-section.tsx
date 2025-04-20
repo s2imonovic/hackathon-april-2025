@@ -3,8 +3,22 @@ import { motion } from "framer-motion"
 import { ArrowRight, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { TradingForm } from "@/components/trading-form"
+import { useState } from "react"
 
 export function HeroSection() {
+  const [depositAmount, setDepositAmount] = useState("")
+  const [targetPriceLow, setTargetPriceLow] = useState("")
+  const [targetPriceHigh, setTargetPriceHigh] = useState("")
+  const [slippage, setSlippage] = useState("100")
+  const [selectedLowAdjustment, setSelectedLowAdjustment] = useState("1%")
+  const [selectedHighAdjustment, setSelectedHighAdjustment] = useState("5%")
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleDepositAndOrder = () => {
+    // This will be handled by the TradingForm component
+  }
+
   return (
     <section id="home" className="pt-2 w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-base-100">
       <div className="container px-4 md:px-6">
@@ -38,8 +52,7 @@ export function HeroSection() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                ZetaHopper executes trades fully on-chain with advanced algorithms. Just set your amount and let our bot
-                maximize your returns on Zetachain.
+                We harnessed the power of ZetaChain's crosschain architecture to create a truly autonomous range trading system.
               </motion.p>
             </div>
             <motion.div
@@ -64,7 +77,7 @@ export function HeroSection() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
           >
-            <div className="relative h-[350px] w-[350px] sm:h-[400px] sm:w-[400px] lg:h-[500px] lg:w-[500px]">
+            <div className="relative w-full">
               <motion.div
                 className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-accent to-secondary opacity-20 blur-3xl"
                 animate={{
@@ -77,48 +90,23 @@ export function HeroSection() {
                   repeatType: "reverse",
                 }}
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  className="rounded-xl bg-base-200 p-6 shadow-lg border border-base-300"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.6, duration: 0.5 }}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Zap className="h-5 w-5 text-accent" />
-                      <span className="font-bold text-base-content">ZetaHopper Bot</span>
-                    </div>
-                    <div className="flex space-x-1">
-                      <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                      <div className="h-2 w-2 rounded-full bg-success animate-pulse delay-75" />
-                      <div className="h-2 w-2 rounded-full bg-success animate-pulse delay-150" />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="text-sm text-base-content/70">Current Position</div>
-                      <div className="text-xl font-bold text-base-content">
-                        +12.4% <span className="text-success text-sm">↑</span>
-                      </div>
-                    </div>
-                    <div className="h-24 w-full bg-base-300 rounded-md overflow-hidden">
-                      <svg viewBox="0 0 100 20" className="w-full h-full">
-                        <path d="M0,10 Q30,5 50,10 T100,10" fill="none" stroke="#34EEB6" strokeWidth="0.5" />
-                      </svg>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-md bg-base-300 p-2">
-                        <div className="text-xs text-base-content/70">24h Volume</div>
-                        <div className="text-sm font-medium text-base-content">$1.2M</div>
-                      </div>
-                      <div className="rounded-md bg-base-300 p-2">
-                        <div className="text-xs text-base-content/70">Trades</div>
-                        <div className="text-sm font-medium text-base-content">142</div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+              <div className="relative z-10">
+                <TradingForm 
+                  depositAmount={depositAmount}
+                  setDepositAmount={setDepositAmount}
+                  targetPriceLow={targetPriceLow}
+                  setTargetPriceLow={setTargetPriceLow}
+                  targetPriceHigh={targetPriceHigh}
+                  setTargetPriceHigh={setTargetPriceHigh}
+                  slippage={slippage}
+                  setSlippage={setSlippage}
+                  selectedLowAdjustment={selectedLowAdjustment}
+                  setSelectedLowAdjustment={setSelectedLowAdjustment}
+                  selectedHighAdjustment={selectedHighAdjustment}
+                  setSelectedHighAdjustment={setSelectedHighAdjustment}
+                  handleDepositAndOrder={handleDepositAndOrder}
+                  isProcessing={isProcessing}
+                />
               </div>
             </div>
           </motion.div>

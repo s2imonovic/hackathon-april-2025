@@ -28,6 +28,11 @@ function getSavedContractProxies() {
     return JSON.parse(json)
 }
 
+function getSavedContractProxy(network, contract) {
+    const addrs = getSavedContractProxies()
+    return addrs[network] && addrs[network][contract] ? addrs[network][contract] : null
+}
+
 function saveContractProxies(network, contract, address) {
     const addrs = getSavedContractProxies()
     addrs[network] = addrs[network] || {}
@@ -86,15 +91,61 @@ function getSavedContractProxyAbis() {
     return JSON.parse(json)
 }
 
+// New functions for implementation addresses and constructor arguments
+function getSavedImplementationAddresses() {
+    let json
+    try {
+        json = fs.readFileSync(path.join(__dirname, `../../deployments/addresses/implementation-addresses.json`))
+    } catch (err) {
+        json = '{}'
+    }
+    return JSON.parse(json)
+}
+
+function getSavedImplementationAddress(network, contract) {
+    const addrs = getSavedImplementationAddresses()
+    return addrs[network] && addrs[network][contract] ? addrs[network][contract] : null
+}
+
+function saveImplementationAddress(network, contract, address) {
+    const addrs = getSavedImplementationAddresses()
+    addrs[network] = addrs[network] || {}
+    addrs[network][contract] = address
+    fs.writeFileSync(path.join(__dirname, `../../deployments/addresses/implementation-addresses.json`), JSON.stringify(addrs, null, '    '))
+}
+
+function getSavedConstructorArguments() {
+    let json
+    try {
+        json = fs.readFileSync(path.join(__dirname, `../../deployments/addresses/constructor-arguments.json`))
+    } catch (err) {
+        json = '{}'
+    }
+    return JSON.parse(json)
+}
+
+function saveConstructorArguments(network, contract, args) {
+    const argsData = getSavedConstructorArguments()
+    argsData[network] = argsData[network] || {}
+    argsData[network][contract] = args
+    fs.writeFileSync(path.join(__dirname, `../../deployments/addresses/constructor-arguments.json`), JSON.stringify(argsData, null, '    '))
+}
+
 module.exports = {
     getSavedContractAddresses,
     saveContractAddress,
     getDeploymentBlockchain,
     saveDeploymentBlockchain,
     getSavedContractProxies,
+    getSavedContractProxy,
     saveContractProxies,
     getSavedContractABI,
     saveContractAbi,
     saveContractAbiTest,
-    getSavedContractProxyAbis
+    getSavedContractProxyAbis,
+    getSavedImplementationAddresses,
+    getSavedImplementationAddress,
+    saveImplementationAddress,
+    getSavedConstructorArguments,
+    saveConstructorArguments
 }

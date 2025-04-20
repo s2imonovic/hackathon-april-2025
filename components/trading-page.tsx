@@ -11,11 +11,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart3 } from "lucide-react"
 import { useAccount, useWriteContract, useReadContract } from "wagmi"
 import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
-import contractAddresses from "@/deployments/addresses/contract-addresses.json"
+import contractProxies from "@/deployments/addresses/contract-proxies.json"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { TradingViewWidget } from "./trading-view-widget"
+import { TradingForm } from "@/components/trading-form"
+import { ZetaHopperBotCard } from "@/components/zeta-hopper-bot-card"
 
+// Define types for the contract proxies
+type NetworkType = 'testnet' | 'mainnet' | 'base_sepolia' | 'base';
+type ContractProxiesType = {
+  [key in NetworkType]?: {
+    ProxyAdmin?: string;
+    ZetaOrderBook?: string;
+    CallbackConnector?: string;
+  };
+};
+
+// Determine which network to use based on environment
+const isTestnet = process.env.NEXT_PUBLIC_USE_TESTNET === 'true'
+const network = isTestnet ? 'testnet' : 'mainnet'
+
+// Get the contract address from the proxy addresses
+const typedProxies = contractProxies as ContractProxiesType;
+const zetaOrderBookAddress = typedProxies[network]?.ZetaOrderBook as `0x${string}` || '0x0000000000000000000000000000000000000000'
+
+// Use the ABI from the mainnet contract (should be the same for both networks)
 const zetaOrderBookABI = contractAbis.mainnet.ZetaOrderBook.abi
-const zetaOrderBookAddress = contractAddresses.mainnet.ZetaOrderBook as `0x${string}`
 
 // Check if deposits are enabled
 const DEPOSITS_ENABLED = process.env.NEXT_PUBLIC_DEPOSITS_ENABLED === "true"
@@ -44,6 +65,7 @@ export const TradingPage: React.FC = () => {
   const [orderTargetPriceLow, setOrderTargetPriceLow] = useState("")
   const [orderTargetPriceHigh, setOrderTargetPriceHigh] = useState("")
   const [orderSlippage, setOrderSlippage] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // New states for withdrawal actions (still kept if needed for UI hints)
   const [withdrawUsdcAmount, setWithdrawUsdcAmount] = useState("")
@@ -516,11 +538,11 @@ useEffect(() => {
 
   return (
     <>
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-base-100">
+      <section className="w-full py-6 md:py-12 lg:py-16 bg-base-100">
         <div className="container px-4 md:px-6">
           {/* Header */}
           <motion.div
-            className="flex flex-col items-center justify-center space-y-4 text-center mb-12"
+            className="flex flex-col items-center justify-center space-y-4 text-center mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -533,7 +555,7 @@ useEffect(() => {
                 Start Trading Now
               </h1>
               <p className="max-w-[900px] text-base-content/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Set your parameters and let ZetaHopper&apos;s advanced algorithms maximize your returns on Zetachain.
+                Set your price range and let ZetaHopper automatically buy low and sell high on Zetachain.
               </p>
             </div>
           </motion.div>
@@ -541,39 +563,57 @@ useEffect(() => {
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Main Actions Card */}
             <motion.div
-              className="lg:col-span-2"
+              className="lg:col-span-2 space-y-8"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <Card className="bg-base-200 border-base-300">
-                <CardHeader>
-                  <CardTitle className="text-base-content">Smart Contract Actions</CardTitle>
+              {/* TradingView Chart */}
+              <Card className="bg-base-200 border-base-300 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base-content">ZETA/USDC Chart</CardTitle>
                   <CardDescription className="text-base-content/70">
-                    Interact with ZetaOrderBook contract
+                    Real-time price chart for ZETA/USDC trading pair
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="p-0">
+                  <div className="h-[480px] w-full min-h-[400px]">
+                    <TradingViewWidget 
+                      symbol="ZETAUSDC" 
+                      theme="dark" 
+                      height="480" 
+                      width="100%" 
+                      autosize={true}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-base-200 border-base-300">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base-content">Smart Contract Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="trade">Trade</TabsTrigger>
                       <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
                       <TabsTrigger value="cancel">Cancel Order</TabsTrigger>
                     </TabsList>
-
+                    
                     {/* Trade Tab: Deposit & Orders Combined */}
-                    <TabsContent value="trade" className="space-y-6">
+                    <TabsContent value="trade" className="space-y-4">
                       {/* Balance Section */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <Card className="bg-primary/5 border-primary/20">
-                          <CardContent className="pt-6">
-                            <div className="space-y-2">
+                          <CardContent className="p-3">
+                            <div className="space-y-1">
                               {(() => {
                                 const usdcTotal = ((Number(userUsdcBalanceData || 0)) + (Number(userUsdcLockedBalanceData || 0))) / 1e6
                                 const usdcLocked = (Number(userUsdcLockedBalanceData || 0)) / 1e6
                                 return (
                                   <>
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between text-sm">
                                       <span className="text-base-content">USDC Balance</span>
                                       <span className="text-base-content font-medium">
                                         {userUsdcBalanceData || userUsdcLockedBalanceData
@@ -581,7 +621,7 @@ useEffect(() => {
                                           : "--"}
                                       </span>
                                     </div>
-                                    <div className="flex items-center justify-between text-sm text-base-content/70">
+                                    <div className="flex items-center justify-between text-xs text-base-content/70">
                                       <span>Locked</span>
                                       <span>
                                         {userUsdcLockedBalanceData ? `${usdcLocked.toFixed(6)} USDC` : "--"}
@@ -594,14 +634,14 @@ useEffect(() => {
                           </CardContent>
                         </Card>
                         <Card className="bg-secondary/5 border-secondary/20">
-                          <CardContent className="pt-6">
-                            <div className="space-y-2">
+                          <CardContent className="p-3">
+                            <div className="space-y-1">
                               {(() => {
                                 const zetaTotal = ((Number(userZetaBalanceData || 0)) + (Number(userZetaLockedBalanceData || 0))) / 1e18
                                 const zetaLocked = (Number(userZetaLockedBalanceData || 0)) / 1e18
                                 return (
                                   <>
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between text-sm">
                                       <span className="text-base-content">ZETA Balance</span>
                                       <span className="text-base-content font-medium" title={`${zetaTotal.toFixed(18)} ZETA`}>
                                         {userZetaBalanceData || userZetaLockedBalanceData
@@ -609,7 +649,7 @@ useEffect(() => {
                                           : "--"}
                                       </span>
                                     </div>
-                                    <div className="flex items-center justify-between text-sm text-base-content/70">
+                                    <div className="flex items-center justify-between text-xs text-base-content/70">
                                       <span>Locked</span>
                                       <span title={`${zetaLocked.toFixed(18)} ZETA`}>
                                         {userZetaLockedBalanceData ? `${zetaLocked.toFixed(2)} ZETA` : "--"}
@@ -622,116 +662,19 @@ useEffect(() => {
                           </CardContent>
                         </Card>
                       </div>
-
-                      {/* Deposit Section */}
-                      <div className="space-y-4">
-                        <Label htmlFor="deposit-type" className="text-base-content">
-                          Select Deposit Token
-                        </Label>
-                        <Select
-                          value={depositType}
-                          onValueChange={(val) => setDepositType(val as "usdc" | "zeta")}
-                        >
-                          <SelectTrigger className="w-full bg-base-100 border-base-300 text-base-content">
-                            <SelectValue placeholder="Select token" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-base-200 border-base-300 text-base-content">
-                            <SelectItem value="usdc">USDC</SelectItem>
-                            <SelectItem value="zeta">ZETA</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {depositType === "usdc" ? (
-                          <div className="space-y-2">
-                            <Label htmlFor="deposit-usdc" className="text-base-content">
-                              Deposit USDC (in smallest unit)
-                            </Label>
-                            <Input
-                              id="deposit-usdc"
-                              placeholder="e.g., 1000"
-                              value={depositUsdcAmount}
-                              onChange={(e) => setDepositUsdcAmount(e.target.value)}
-                              className="bg-base-100 border-base-300 text-base-content"
-                              disabled={!DEPOSITS_ENABLED}
-                            />
-                            <Button
-                              onClick={handleDepositUsdc}
-                              className={`${DEPOSITS_ENABLED ? "bg-primary text-primary-content hover:bg-primary/90" : "bg-gray-400 text-white cursor-not-allowed"}`}
-                              disabled={!DEPOSITS_ENABLED}
-                            >
-                              {DEPOSITS_ENABLED ? "Deposit USDC" : "Coming Soon"}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <Label htmlFor="deposit-zeta" className="text-base-content">
-                              Deposit ZETA (in ETH)
-                            </Label>
-                            <Input
-                              id="deposit-zeta"
-                              placeholder="e.g., 0.5"
-                              value={depositZetaAmount}
-                              onChange={(e) => setDepositZetaAmount(e.target.value)}
-                              className="bg-base-100 border-base-300 text-base-content"
-                              disabled={!DEPOSITS_ENABLED}
-                            />
-                            <Button
-                              onClick={handleDepositZeta}
-                              className={`${DEPOSITS_ENABLED ? "bg-primary text-primary-content hover:bg-primary/90" : "bg-gray-400 text-white cursor-not-allowed"}`}
-                              disabled={!DEPOSITS_ENABLED}
-                            >
-                              {DEPOSITS_ENABLED ? "Deposit ZETA" : "Coming Soon"}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Order Section */}
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <PriceInput
-                            label="Target Price Low"
-                            value={orderTargetPriceLow}
-                            onChange={setOrderTargetPriceLow}
-                            placeholder="e.g., 0.246500"
-                          />
-                          <PriceInput
-                            label="Target Price High"
-                            value={orderTargetPriceHigh}
-                            onChange={setOrderTargetPriceHigh}
-                            placeholder="e.g., 0.250000"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <SlippageSelector />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Button
-                            onClick={handleCreateSellOrder}
-                            className="bg-primary text-primary-content hover:bg-primary/90"
-                          >
-                            Create Sell Order
-                          </Button>
-                          <Button
-                            onClick={handleCreateBuyOrder}
-                            className="bg-primary text-primary-content hover:bg-primary/90"
-                          >
-                            Create Buy Order
-                          </Button>
-                        </div>
-                      </div>
                     </TabsContent>
 
                     {/* Withdraw Tab */}
-                    <TabsContent value="withdraw" className="space-y-6">
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
+                    <TabsContent value="withdraw" className="space-y-4">
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
                             {(() => {
                               const usdcTotal = ((Number(userUsdcBalanceData || 0)) + (Number(userUsdcLockedBalanceData || 0))) / 1e6
                               const usdcLocked = (Number(userUsdcLockedBalanceData || 0)) / 1e6
                               return (
                                 <>
-                                  <div className="flex items-center justify-between">
+                                  <div className="flex items-center justify-between text-sm">
                                     <span className="text-base-content">USDC Balance</span>
                                     <span className="text-base-content font-medium">
                                       {userUsdcBalanceData || userUsdcLockedBalanceData
@@ -739,7 +682,7 @@ useEffect(() => {
                                         : "--"}
                                     </span>
                                   </div>
-                                  <div className="flex items-center justify-between text-sm text-base-content/70">
+                                  <div className="flex items-center justify-between text-xs text-base-content/70">
                                     <span>Locked</span>
                                     <span>
                                       {userUsdcLockedBalanceData ? `${usdcLocked.toFixed(6)} USDC` : "--"}
@@ -749,13 +692,13 @@ useEffect(() => {
                               )
                             })()}
                           </div>
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             {(() => {
                               const zetaTotal = ((Number(userZetaBalanceData || 0)) + (Number(userZetaLockedBalanceData || 0))) / 1e18
                               const zetaLocked = (Number(userZetaLockedBalanceData || 0)) / 1e18
                               return (
                                 <>
-                                  <div className="flex items-center justify-between">
+                                  <div className="flex items-center justify-between text-sm">
                                     <span className="text-base-content">ZETA Balance</span>
                                     <span className="text-base-content font-medium" title={`${zetaTotal.toFixed(18)} ZETA`}>
                                       {userZetaBalanceData || userZetaLockedBalanceData
@@ -763,7 +706,7 @@ useEffect(() => {
                                         : "--"}
                                     </span>
                                   </div>
-                                  <div className="flex items-center justify-between text-sm text-base-content/70">
+                                  <div className="flex items-center justify-between text-xs text-base-content/70">
                                     <span>Locked</span>
                                     <span title={`${zetaLocked.toFixed(18)} ZETA`}>
                                       {userZetaLockedBalanceData ? `${zetaLocked.toFixed(2)} ZETA` : "--"}
@@ -774,8 +717,8 @@ useEffect(() => {
                             })()}
                           </div>
                         </div>
-                        <div className="space-y-4">
-                          <Label htmlFor="withdraw-type" className="text-base-content">
+                        <div className="space-y-3">
+                          <Label htmlFor="withdraw-type" className="text-base-content text-sm">
                             Select Withdrawal Token
                           </Label>
                           <Select
@@ -810,44 +753,44 @@ useEffect(() => {
                     </TabsContent>
 
                     {/* Cancel Order Tab */}
-                    <TabsContent value="cancel" className="space-y-6">
-                      {userActiveOrderIdData && userActiveOrderIdData.toString() !== "0" && currentOrderData ? (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
+                    <TabsContent value="cancel" className="space-y-4">
+                      {currentOrderData && currentOrderData[7] === true ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Order ID</span>
                                 <span className="text-base-content font-medium">
                                   {currentOrderData[0]?.toString()}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Maker</span>
                                 <span className="text-base-content font-medium text-xs truncate max-w-[180px]">
                                   {currentOrderData[1]}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Amount</span>
                                 <span className="text-base-content font-medium">
                                   {(Number(currentOrderData[2] || 0) / 1e18).toString()} ZETA
                                 </span>
                               </div>
                             </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Type</span>
                                 <span className="text-base-content font-medium">
                                   {Number(currentOrderData[6]) === 0 ? "Buy" : "Sell"}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Status</span>
                                 <span className={`font-medium ${currentOrderData[7] ? "text-green-500" : "text-red-500"}`}>
                                   {currentOrderData[7] ? "Active" : "Inactive"}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Slippage</span>
                                 <span className="text-base-content font-medium">
                                   {(Number(currentOrderData[5] || 0) / 100).toFixed(2)}%
@@ -855,17 +798,17 @@ useEffect(() => {
                               </div>
                             </div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Target Price Low</span>
                                 <span className="text-base-content font-medium">
                                   ${(Number(currentOrderData[3] || 0) / 1e6).toString()}
                                 </span>
                               </div>
                             </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
                                 <span className="text-base-content">Target Price High</span>
                                 <span className="text-base-content font-medium">
                                   ${(Number(currentOrderData[4] || 0) / 1e6).toString()}
@@ -898,47 +841,25 @@ useEffect(() => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              {/* Market Stats */}
+              {/* Trading Form */}
               <Card className="bg-base-200 border-base-300">
-                <CardHeader>
-                  <CardTitle className="text-base-content">Market Stats</CardTitle>
-                  <CardDescription className="text-base-content/70">Current market conditions</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <BarChart3 className="h-5 w-5 text-primary" />
-                        <span className="text-base-content">ZETA Price</span>
-                      </div>
-                      <div className="text-base-content font-medium">
-                        {zetaPrice ? `$${(Number(zetaPrice) / 1e6).toFixed(6)}` : "$--.--"}
-                        {priceTimestamp && (
-                          <span className="ml-2 text-xs text-base-content/70">
-                            (Updated: {new Date(Number(priceTimestamp) * 1000).toLocaleTimeString()})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-base-content">Next Order ID</span>
-                      <span className="text-base-content font-medium">
-                        {nextOrderIdData ? nextOrderIdData.toString() : "--"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-base-content">Contract ZETA Balance</span>
-                      <span className="text-base-content font-medium">
-                        {contractZetaBalanceData ? `${(Number(contractZetaBalanceData) / 1e18).toFixed(6)} ZETA` : "--"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-base-content">Contract USDC Balance</span>
-                      <span className="text-base-content font-medium">
-                        {contractUsdcBalanceData ? `${(Number(contractUsdcBalanceData) / 1e6).toFixed(2)} USDC` : "--"}
-                      </span>
-                    </div>
-                  </div>
+                <CardContent className="p-6">
+                  <TradingForm 
+                    depositAmount={depositUsdcAmount}
+                    setDepositAmount={setDepositUsdcAmount}
+                    targetPriceLow={orderTargetPriceLow}
+                    setTargetPriceLow={setOrderTargetPriceLow}
+                    targetPriceHigh={orderTargetPriceHigh}
+                    setTargetPriceHigh={setOrderTargetPriceHigh}
+                    slippage={orderSlippage}
+                    setSlippage={setOrderSlippage}
+                    selectedLowAdjustment="1%"
+                    setSelectedLowAdjustment={() => {}}
+                    selectedHighAdjustment="5%"
+                    setSelectedHighAdjustment={() => {}}
+                    handleDepositAndOrder={handleDepositUsdc}
+                    isProcessing={isProcessing}
+                  />
                 </CardContent>
               </Card>
 
@@ -1036,7 +957,7 @@ useEffect(() => {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    {userActiveOrderIdData && userActiveOrderIdData.toString() !== "0" && currentOrderData ? (
+                    {currentOrderData && currentOrderData[7] === true ? (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-base-content">Order ID</span>
@@ -1093,6 +1014,50 @@ useEffect(() => {
                   </CardContent>
                 </Card>            
               )}
+
+              {/* Market Stats */}
+              <Card className="bg-base-200 border-base-300">
+                <CardHeader>
+                  <CardTitle className="text-base-content">Market Stats</CardTitle>
+                  <CardDescription className="text-base-content/70">Current market conditions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <BarChart3 className="h-5 w-5 text-primary" />
+                        <span className="text-base-content">ZETA Price</span>
+                      </div>
+                      <div className="text-base-content font-medium">
+                        {zetaPrice ? `$${(Number(zetaPrice) / 1e6).toFixed(6)}` : "$--.--"}
+                        {priceTimestamp && (
+                          <span className="ml-2 text-xs text-base-content/70">
+                            (Updated: {new Date(Number(priceTimestamp) * 1000).toLocaleTimeString()})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Next Order ID</span>
+                      <span className="text-base-content font-medium">
+                        {nextOrderIdData ? nextOrderIdData.toString() : "--"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Contract ZETA Balance</span>
+                      <span className="text-base-content font-medium">
+                        {contractZetaBalanceData ? `${(Number(contractZetaBalanceData) / 1e18).toFixed(6)} ZETA` : "--"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base-content">Contract USDC Balance</span>
+                      <span className="text-base-content font-medium">
+                        {contractUsdcBalanceData ? `${(Number(contractUsdcBalanceData) / 1e6).toFixed(2)} USDC` : "--"}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           </div>
         </div>

@@ -1,0 +1,15 @@
+{
+    "base_sepolia": {
+        "CallbackConnector": "0xff88f342B86D1E85869d2c170eFAdA15141231e0"
+    },
+    "testnet": {
+        "ZetaOrderBook": "0xfCb6954c06Dae48A310B139225561C62E041d4C1"
+    },
+    "base": {
+        "CallbackConnector": "0xA5FFcC27eBb53cfF71A7dFe34551866e97d32626"
+    },
+    "mainnet": {
+        "ZetaOrderBook_old": "0xC755c4289e982bD46c8B31AD6444DDbfFa4F9b3c",
+        "ZetaOrderBook": "0xa21488b05a971eF2d44ff9d826F197f2Cba7E7ff"
+    }
+}

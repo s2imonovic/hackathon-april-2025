@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { TradingViewWidget } from "./trading-view-widget"
 import { TradingForm } from "@/components/trading-form"
 import { ZetaHopperBotCard } from "@/components/zeta-hopper-bot-card"
+import Confetti from 'react-confetti'
+import { useWindowSize } from 'react-use'
 
 // Define types for the contract proxies
 type NetworkType = 'testnet' | 'mainnet' | 'base_sepolia' | 'base';
@@ -54,6 +56,33 @@ interface OrderDetails {
   7: boolean
 }
 
+// Define the specific function ABI for depositZetaAndCreateSellOrder
+const depositZetaAndCreateSellOrderABI = [
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "targetPriceLow",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetPriceHigh",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "slippageBps",
+        "type": "uint256"
+      }
+    ],
+    "name": "depositZetaAndCreateSellOrder",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  }
+]
+
 export const TradingPage: React.FC = () => {
   // Existing states
   const [amount, setAmount] = useState("1000")
@@ -85,6 +114,16 @@ export const TradingPage: React.FC = () => {
   // Wallet connection details
   const { address, chainId } = useAccount()
 
+  // Add state for confetti
+  const [showConfetti, setShowConfetti] = useState(false)
+  const { width, height } = useWindowSize()
+  
+  // Add flag to track if transaction has been initiated
+  const [transactionInitiated, setTransactionInitiated] = useState(false)
+  
+  // Add state to track if we're coming from the hero section
+  const [fromHeroSection, setFromHeroSection] = useState(false)
+
   // Write contract hooks
   const { writeContract: writeDepositUsdc } = useWriteContract()
   const { writeContract: writeDepositZeta } = useWriteContract()
@@ -93,6 +132,7 @@ export const TradingPage: React.FC = () => {
   const { writeContract: writeWithdrawUsdc } = useWriteContract()
   const { writeContract: writeWithdrawZeta } = useWriteContract()
   const { writeContract: writeCancelOrder } = useWriteContract()
+  const { writeContract: writeDepositZetaAndCreateSellOrder } = useWriteContract()
 
   // Read contract hooks
   const { data: nextOrderIdData, refetch: refetchNextOrderId } = useReadContract({
@@ -198,6 +238,60 @@ export const TradingPage: React.FC = () => {
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const [pendingDeposit, setPendingDeposit] = useState<"usdc" | "zeta" | null>(null)
 
+  // Add state for price adjustment selections
+  const [selectedLowAdjustment, setSelectedLowAdjustment] = useState("1%")
+  const [selectedHighAdjustment, setSelectedHighAdjustment] = useState("5%")
+
+  // Add a function to refresh all data with a delay
+  const refreshAllDataWithDelay = (delayMs = 6000) => {
+    console.log(`Will refresh data after ${delayMs}ms delay`);
+    
+    // Show confetti animation
+    setShowConfetti(true);
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+    
+    // Wait for the specified delay before refreshing data
+    setTimeout(() => {
+      console.log("Refreshing data after delay");
+      // Refresh all data
+      refetchNextOrderId();
+      refetchContractZetaBalance();
+      refetchContractUsdcBalance();
+      refetchUserUsdcBalance();
+      refetchUserZetaBalance();
+      refetchUserUsdcLockedBalance();
+      refetchUserZetaLockedBalance();
+      refetchUserOrderId();
+      refetchPrice();
+      refetchUserActiveOrderId();
+      refetchCurrentOrder();
+    }, delayMs);
+  };
+
+  // Handle URL parameters when redirected from hero section
+  useEffect(() => {
+    // Check if we're coming from the hero section
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromHero = urlParams.get('fromHero');
+    
+    if (fromHero === 'true') {
+      console.log("Detected redirect from hero section");
+      setFromHeroSection(true);
+      
+      // Remove the parameter from the URL without refreshing the page
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Refresh data with delay
+      refreshAllDataWithDelay();
+    }
+  }, [refetchNextOrderId, refetchContractZetaBalance, refetchContractUsdcBalance, 
+      refetchUserUsdcBalance, refetchUserZetaBalance, refetchUserUsdcLockedBalance, 
+      refetchUserZetaLockedBalance, refetchUserOrderId, refetchPrice, refetchUserActiveOrderId,
+      refetchCurrentOrder]);
+
   useEffect(() => {
     if (zetaPriceData) {
       const [price, timestamp] = zetaPriceData as [bigint, bigint]
@@ -297,12 +391,27 @@ useEffect(() => {
       alert("Please connect your wallet to perform this action.")
       return
     }
+    
+    // Prevent duplicate transactions
+    if (transactionInitiated) {
+      console.log("Transaction already initiated, ignoring duplicate click")
+      return
+    }
+    
     setPendingDeposit("zeta")
     setShowDisclaimer(true)
   }
 
   const handleConfirmDeposit = () => {
     if (!pendingDeposit) return
+    
+    // Prevent duplicate transactions
+    if (transactionInitiated) {
+      console.log("Transaction already initiated, ignoring duplicate click")
+      return
+    }
+    
+    setTransactionInitiated(true)
 
     if (pendingDeposit === "usdc") {
       writeDepositUsdc({
@@ -312,17 +421,47 @@ useEffect(() => {
         functionName: "depositUsdc",
         args: [depositUsdcAmount ? parseInt(depositUsdcAmount) : 0],
       })
+      
+      // Refresh the page after the deposit with a delay
+      refreshAllDataWithDelay();
     } else {
-      writeDepositZeta({
-        chainId,
-        address: zetaOrderBookAddress,
-        abi: zetaOrderBookABI,
-        functionName: "depositZeta",
-        value: depositZetaAmount
-          ? BigInt(Math.floor(parseFloat(depositZetaAmount) * 1e18))
-          : BigInt(0),
-      })
+      // If we have price parameters, use the combined function
+      if (orderTargetPriceLow && orderTargetPriceHigh) {
+        console.log("Using combined depositZetaAndCreateSellOrder function")
+        writeDepositZetaAndCreateSellOrder({
+          chainId,
+          address: zetaOrderBookAddress,
+          abi: depositZetaAndCreateSellOrderABI,
+          functionName: "depositZetaAndCreateSellOrder",
+          value: depositZetaAmount
+            ? BigInt(Math.floor(parseFloat(depositZetaAmount) * 1e18))
+            : BigInt(0),
+          args: [
+            convertDollarsToContractValue(orderTargetPriceLow),
+            convertDollarsToContractValue(orderTargetPriceHigh),
+            orderSlippage ? parseInt(orderSlippage) : 0,
+          ],
+        })
+        
+        // Refresh the page after the transaction with a delay
+        refreshAllDataWithDelay();
+      } else {
+        // Just deposit ZETA without creating an order
+        writeDepositZeta({
+          chainId,
+          address: zetaOrderBookAddress,
+          abi: zetaOrderBookABI,
+          functionName: "depositZeta",
+          value: depositZetaAmount
+            ? BigInt(Math.floor(parseFloat(depositZetaAmount) * 1e18))
+            : BigInt(0),
+        })
+        
+        // Refresh the page after the deposit with a delay
+        refreshAllDataWithDelay();
+      }
     }
+    
     setShowDisclaimer(false)
     setPendingDeposit(null)
   }
@@ -345,6 +484,9 @@ useEffect(() => {
         orderSlippage ? parseInt(orderSlippage) : 0,
       ],
     })
+    
+    // Refresh the page after the order is created with a delay
+    refreshAllDataWithDelay();
   }
 
   const handleCreateBuyOrder = () => {
@@ -363,6 +505,9 @@ useEffect(() => {
         orderSlippage ? parseInt(orderSlippage) : 0,
       ],
     })
+    
+    // Refresh the page after the order is created with a delay
+    refreshAllDataWithDelay();
   }
 
   // Withdrawal functions
@@ -379,6 +524,9 @@ useEffect(() => {
       functionName: "withdrawUsdc",
       args: [],
     })
+    
+    // Refresh the page after the withdrawal with a delay
+    refreshAllDataWithDelay();
   }
 
   const handleWithdrawZeta = () => {
@@ -393,6 +541,9 @@ useEffect(() => {
       functionName: "withdrawZeta",
       args: [],
     })
+    
+    // Refresh the page after the withdrawal with a delay
+    refreshAllDataWithDelay();
   }
 
   // Cancel order function
@@ -412,6 +563,9 @@ useEffect(() => {
       functionName: "cancelOrder",
       args: [Number(userActiveOrderIdData.toString())],
     })
+    
+    // Refresh the page after the order is cancelled with a delay
+    refreshAllDataWithDelay();
   }
 
   // Manual refresh for market price
@@ -538,6 +692,17 @@ useEffect(() => {
 
   return (
     <>
+      {showConfetti && (
+        <Confetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={500}
+          gravity={0.2}
+          colors={['#10B981', '#C0C0C0']}
+          style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999 }}
+        />
+      )}
       <section className="w-full py-6 md:py-12 lg:py-16 bg-base-100">
         <div className="container px-4 md:px-6">
           {/* Header */}
@@ -836,14 +1001,14 @@ useEffect(() => {
 
             {/* Stats, Info, and Active Order */}
             <motion.div
-              className="space-y-6"
+              className="space-y-6 w-full"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
               {/* Trading Form */}
-              <Card className="bg-base-200 border-base-300">
-                <CardContent className="p-6">
+              <Card className="bg-base-200 border-base-300 w-full">
+                <CardContent className="p-6 w-full">
                   <TradingForm 
                     depositAmount={depositUsdcAmount}
                     setDepositAmount={setDepositUsdcAmount}
@@ -853,12 +1018,13 @@ useEffect(() => {
                     setTargetPriceHigh={setOrderTargetPriceHigh}
                     slippage={orderSlippage}
                     setSlippage={setOrderSlippage}
-                    selectedLowAdjustment="1%"
-                    setSelectedLowAdjustment={() => {}}
-                    selectedHighAdjustment="5%"
-                    setSelectedHighAdjustment={() => {}}
+                    selectedLowAdjustment={selectedLowAdjustment}
+                    setSelectedLowAdjustment={setSelectedLowAdjustment}
+                    selectedHighAdjustment={selectedHighAdjustment}
+                    setSelectedHighAdjustment={setSelectedHighAdjustment}
                     handleDepositAndOrder={handleDepositUsdc}
                     isProcessing={isProcessing}
+                    fullWidth={true}
                   />
                 </CardContent>
               </Card>

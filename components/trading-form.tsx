@@ -110,6 +110,7 @@ interface TradingFormProps {
   setSelectedHighAdjustment: (value: string) => void
   handleDepositAndOrder: () => void
   isProcessing: boolean
+  fullWidth?: boolean
 }
 
 export function TradingForm({
@@ -126,10 +127,11 @@ export function TradingForm({
   selectedHighAdjustment,
   setSelectedHighAdjustment,
   handleDepositAndOrder,
-  isProcessing
+  isProcessing,
+  fullWidth = false
 }: TradingFormProps) {
   return (
-    <div className="w-full max-w-md space-y-6 rounded-xl bg-base-100 p-6 shadow-lg border border-base-300">
+    <div className={`w-full ${fullWidth ? '' : 'max-w-md'} space-y-6 rounded-xl bg-base-100 p-6 shadow-lg border border-base-300`}>
       <div className="space-y-2 text-center">
         <h3 className="text-2xl font-bold text-base-content">Start Trading Now</h3>
         <p className="text-base-content/70">Enter your trading parameters below</p>

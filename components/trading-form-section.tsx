@@ -10,6 +10,8 @@ import { Wallet, Info } from "lucide-react"
 import { useAccount, useWriteContract, useReadContract } from "wagmi"
 import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
 import contractProxies from "@/deployments/addresses/contract-proxies.json"
+import confetti from 'canvas-confetti'
+import { TradingForm } from "@/components/trading-form"
 
 // Define types for the contract proxies
 type NetworkType = 'testnet' | 'mainnet' | 'base_sepolia' | 'base';
@@ -62,7 +64,13 @@ const depositZetaAndCreateSellOrderABI = [
 // Check if deposits are enabled
 const DEPOSITS_ENABLED = process.env.NEXT_PUBLIC_DEPOSITS_ENABLED === "true"
 
-export function TradingFormSection() {
+export function TradingFormSection({ 
+  showFullContent = true,
+  useContainer = true
+}: { 
+  showFullContent?: boolean
+  useContainer?: boolean
+}) {
   const [depositAmount, setDepositAmount] = useState("")
   const [targetPriceLow, setTargetPriceLow] = useState("")
   const [targetPriceHigh, setTargetPriceHigh] = useState("")
@@ -106,6 +114,29 @@ export function TradingFormSection() {
     setTargetPriceHigh(adjustPrice(basePrice, 0.05))  // +5%
   }, [])
 
+  // Function to trigger confetti animation
+  const triggerConfetti = () => {
+    // Green confetti
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#10B981', '#34D399', '#6EE7B7', '#A7F3D0'],
+      ticks: 200
+    });
+    
+    // Silver confetti
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#E5E7EB', '#D1D5DB', '#9CA3AF', '#6B7280'],
+        ticks: 200
+      });
+    }, 250);
+  };
+
   // Handle deposit and order creation
   const handleDepositAndOrder = () => {
     if (!DEPOSITS_ENABLED) {
@@ -123,6 +154,9 @@ export function TradingFormSection() {
     if (!address) return
     setIsProcessing(true)
     setShowDisclaimer(false)
+    
+    // Trigger confetti animation
+    triggerConfetti();
 
     try {
       // Use the combined function to deposit ZETA and create sell order in a single transaction
@@ -200,140 +234,86 @@ export function TradingFormSection() {
     )
   }
 
+  const content = (
+    <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
+      {showFullContent && (
+        <motion.div
+          className="flex flex-col justify-center space-y-4"
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="space-y-2">
+            <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-content">
+              Start Trading
+            </div>
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-base-content">
+              Ready to Hop In?
+            </h2>
+            <p className="max-w-[600px] text-base-content/80 md:text-xl">
+              Set your trading parameters and let ZetaHopper work its magic. Our advanced algorithms will optimize
+              your trades on Zetachain.
+            </p>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 rounded-full bg-success" />
+              <span className="text-base-content">Fully automated trading</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 rounded-full bg-success" />
+              <span className="text-base-content">No technical knowledge required</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 rounded-full bg-success" />
+              <span className="text-base-content">Transparent on-chain transactions</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="h-4 w-4 rounded-full bg-success" />
+              <span className="text-base-content">Withdraw your funds anytime</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+      <motion.div
+        className={`flex items-center justify-center ${!showFullContent ? 'lg:col-span-2' : ''}`}
+        initial={{ opacity: 0, x: 20 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+      >
+        <TradingForm 
+          depositAmount={depositAmount}
+          setDepositAmount={setDepositAmount}
+          targetPriceLow={targetPriceLow}
+          setTargetPriceLow={setTargetPriceLow}
+          targetPriceHigh={targetPriceHigh}
+          setTargetPriceHigh={setTargetPriceHigh}
+          slippage={slippage}
+          setSlippage={setSlippage}
+          selectedLowAdjustment={selectedLowAdjustment}
+          setSelectedLowAdjustment={setSelectedLowAdjustment}
+          selectedHighAdjustment={selectedHighAdjustment}
+          setSelectedHighAdjustment={setSelectedHighAdjustment}
+          handleDepositAndOrder={handleDepositAndOrder}
+          isProcessing={isProcessing}
+        />
+      </motion.div>
+    </div>
+  )
+
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 bg-base-200">
-      <div className="container px-4 md:px-6">
-        <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
-          <motion.div
-            className="flex flex-col justify-center space-y-4"
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="space-y-2">
-              <div className="inline-block rounded-lg bg-primary px-3 py-1 text-sm text-primary-content">
-                Start Trading
-              </div>
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-base-content">
-                Ready to Hop In?
-              </h2>
-              <p className="max-w-[600px] text-base-content/80 md:text-xl">
-                Set your trading parameters and let ZetaHopper work its magic. Our advanced algorithms will optimize
-                your trades on Zetachain.
-              </p>
-            </div>
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="h-4 w-4 rounded-full bg-success" />
-                <span className="text-base-content">Fully automated trading</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="h-4 w-4 rounded-full bg-success" />
-                <span className="text-base-content">No technical knowledge required</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="h-4 w-4 rounded-full bg-success" />
-                <span className="text-base-content">Transparent on-chain transactions</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="h-4 w-4 rounded-full bg-success" />
-                <span className="text-base-content">Withdraw your funds anytime</span>
-              </div>
-            </div>
-          </motion.div>
-          <motion.div
-            className="flex items-center justify-center"
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="w-full max-w-md space-y-6 rounded-xl bg-base-100 p-6 shadow-lg border border-base-300">
-              <div className="space-y-2 text-center">
-                <h3 className="text-2xl font-bold text-base-content">Start Trading Now</h3>
-                <p className="text-base-content/70">Enter your trading parameters below</p>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="deposit-amount" className="text-base-content">
-                    Deposit Amount (ZETA)
-                  </Label>
-                  <div className="flex gap-2">
-                    <div className="relative w-1/2">
-                      <Input
-                        id="deposit-amount"
-                        placeholder="Enter amount"
-                        value={depositAmount}
-                        onChange={(e) => setDepositAmount(e.target.value)}
-                        className="w-full bg-base-200 border-base-300 text-base-content pr-16"
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-base-content/70">
-                        ZETA
-                      </div>
-                    </div>
-                    <div className="w-1/2 flex items-center justify-center bg-base-200 border border-base-300 rounded-md px-3 text-base-content">
-                      ZETA/USD: $0.25
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <PriceInput
-                    label="Target Price Low"
-                    value={targetPriceLow}
-                    onChange={setTargetPriceLow}
-                    placeholder="e.g., 0.246500"
-                  />
-                  <PriceInput
-                    label="Target Price High"
-                    value={targetPriceHigh}
-                    onChange={setTargetPriceHigh}
-                    placeholder="e.g., 0.250000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="slippage" className="text-base-content">
-                    Slippage Tolerance
-                  </Label>
-                  <Select
-                    value={slippage}
-                    onValueChange={setSlippage}
-                  >
-                    <SelectTrigger className="w-full bg-base-200 border-base-300 text-base-content">
-                      <SelectValue placeholder="Select slippage" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-base-200 border-base-300 text-base-content">
-                      <SelectItem value="100">1%</SelectItem>
-                      <SelectItem value="500">5%</SelectItem>
-                      <SelectItem value="1000">10%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="rounded-lg bg-info/10 p-3 text-sm text-info flex items-start">
-                  <Info className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                  <span>
-                    You will deposit ZETA and create a sell order at your specified price range.
-                  </span>
-                </div>
-                <Button
-                  className="w-full bg-primary text-primary-content hover:bg-primary/90"
-                  onClick={handleDepositAndOrder}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      <Wallet className="mr-2 h-4 w-4" /> 
-                      Deposit ZETA & Create Sell Order
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
+    <>
+      {useContainer ? (
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-base-200">
+          <div className="container px-4 md:px-6">
+            {content}
+          </div>
+        </section>
+      ) : (
+        content
+      )}
       {showDisclaimer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-base-100 p-6 rounded-lg max-w-md w-full mx-4">
@@ -352,7 +332,7 @@ export function TradingFormSection() {
           </div>
         </div>
       )}
-    </section>
+    </>
   )
 }
 

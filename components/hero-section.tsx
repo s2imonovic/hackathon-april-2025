@@ -3,9 +3,22 @@ import { motion } from "framer-motion"
 import { ArrowRight, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ZetaHopperBotCard } from "@/components/zeta-hopper-bot-card"
+import { TradingForm } from "@/components/trading-form"
+import { useState } from "react"
 
 export function HeroSection() {
+  const [depositAmount, setDepositAmount] = useState("")
+  const [targetPriceLow, setTargetPriceLow] = useState("")
+  const [targetPriceHigh, setTargetPriceHigh] = useState("")
+  const [slippage, setSlippage] = useState("100")
+  const [selectedLowAdjustment, setSelectedLowAdjustment] = useState("1%")
+  const [selectedHighAdjustment, setSelectedHighAdjustment] = useState("5%")
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleDepositAndOrder = () => {
+    // This will be handled by the TradingForm component
+  }
+
   return (
     <section id="home" className="pt-2 w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-base-100">
       <div className="container px-4 md:px-6">
@@ -64,7 +77,7 @@ export function HeroSection() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
           >
-            <div className="relative h-[350px] w-[350px] sm:h-[400px] sm:w-[400px] lg:h-[500px] lg:w-[500px]">
+            <div className="relative w-full">
               <motion.div
                 className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-accent to-secondary opacity-20 blur-3xl"
                 animate={{
@@ -77,8 +90,23 @@ export function HeroSection() {
                   repeatType: "reverse",
                 }}
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <ZetaHopperBotCard />
+              <div className="relative z-10">
+                <TradingForm 
+                  depositAmount={depositAmount}
+                  setDepositAmount={setDepositAmount}
+                  targetPriceLow={targetPriceLow}
+                  setTargetPriceLow={setTargetPriceLow}
+                  targetPriceHigh={targetPriceHigh}
+                  setTargetPriceHigh={setTargetPriceHigh}
+                  slippage={slippage}
+                  setSlippage={setSlippage}
+                  selectedLowAdjustment={selectedLowAdjustment}
+                  setSelectedLowAdjustment={setSelectedLowAdjustment}
+                  selectedHighAdjustment={selectedHighAdjustment}
+                  setSelectedHighAdjustment={setSelectedHighAdjustment}
+                  handleDepositAndOrder={handleDepositAndOrder}
+                  isProcessing={isProcessing}
+                />
               </div>
             </div>
           </motion.div>

@@ -11,7 +11,7 @@ import { useAccount, useWriteContract, useReadContract } from "wagmi"
 import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
 import contractProxies from "@/deployments/addresses/contract-proxies.json"
 import confetti from 'canvas-confetti'
-import { TradingForm } from "@/components/trading-form"
+import { ZetaHopperBotCard } from "@/components/zeta-hopper-bot-card"
 
 // Define types for the contract proxies
 type NetworkType = 'testnet' | 'mainnet' | 'base_sepolia' | 'base';
@@ -71,14 +71,8 @@ export function TradingFormSection({
   showFullContent?: boolean
   useContainer?: boolean
 }) {
-  const [depositAmount, setDepositAmount] = useState("")
-  const [targetPriceLow, setTargetPriceLow] = useState("")
-  const [targetPriceHigh, setTargetPriceHigh] = useState("")
-  const [slippage, setSlippage] = useState("100") // Default 1%
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [selectedLowAdjustment, setSelectedLowAdjustment] = useState("1%")
-  const [selectedHighAdjustment, setSelectedHighAdjustment] = useState("5%")
 
   // Wallet connection details
   const { address, chainId } = useAccount()
@@ -92,27 +86,6 @@ export function TradingFormSection({
     if (isNaN(num)) return 0
     return Math.floor(num * 1000000) // Convert to contract value (multiply by 1e6)
   }
-
-  // Add price adjustment presets
-  const PRICE_ADJUSTMENTS = {
-    "1%": 0.01,
-    "5%": 0.05,
-    "20%": 0.20,
-  }
-
-  // Helper to adjust price by percentage
-  const adjustPrice = (basePrice: string, percentage: number): string => {
-    const price = parseFloat(basePrice)
-    if (isNaN(price)) return basePrice
-    return (price * (1 + percentage)).toFixed(6)
-  }
-
-  // Pre-populate price fields on component mount
-  useEffect(() => {
-    const basePrice = "0.25" // Example base price, in a real app this would come from an API
-    setTargetPriceLow(adjustPrice(basePrice, -0.01)) // -1%
-    setTargetPriceHigh(adjustPrice(basePrice, 0.05))  // +5%
-  }, [])
 
   // Function to trigger confetti animation
   const triggerConfetti = () => {
@@ -165,11 +138,11 @@ export function TradingFormSection({
         address: zetaOrderBookAddress,
         abi: depositZetaAndCreateSellOrderABI,
         functionName: "depositZetaAndCreateSellOrder",
-        value: depositAmount ? BigInt(Math.floor(parseFloat(depositAmount) * 1e18)) : BigInt(0),
+        value: BigInt(0), // Placeholder value
         args: [
-          BigInt(convertDollarsToContractValue(targetPriceLow)),
-          BigInt(convertDollarsToContractValue(targetPriceHigh)),
-          BigInt(slippage ? parseInt(slippage) : 100),
+          BigInt(0), // Placeholder for targetPriceLow
+          BigInt(0), // Placeholder for targetPriceHigh
+          BigInt(100), // Default slippage
         ],
       })
       // Transaction submitted successfully
@@ -180,58 +153,6 @@ export function TradingFormSection({
     } finally {
       setIsProcessing(false)
     }
-  }
-
-  // Create a reusable price input component with adjustment buttons
-  const PriceInput = ({ 
-    label, 
-    value, 
-    onChange,
-    placeholder 
-  }: { 
-    label: string
-    value: string
-    onChange: (value: string) => void
-    placeholder: string
-  }) => {
-    const inputId = `order-${label.toLowerCase().replace(/\s+/g, '-')}`
-    const basePrice = "0.25" // Example base price, in a real app this would come from an API
-    const isLowPrice = label === "Target Price Low"
-    const selectedAdjustment = isLowPrice ? selectedLowAdjustment : selectedHighAdjustment
-    const setSelectedAdjustment = isLowPrice ? setSelectedLowAdjustment : setSelectedHighAdjustment
-    
-    const handleAdjustmentClick = (label: string, percentage: number) => {
-      setSelectedAdjustment(label)
-      onChange(adjustPrice(basePrice, isLowPrice ? -percentage : percentage))
-    }
-    
-    return (
-      <div className="space-y-2">
-        <Label htmlFor={inputId} className="text-base-content">
-          {label}
-        </Label>
-        <Input
-          id={inputId}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="bg-base-100 border-base-300 text-base-content mb-2"
-        />
-        <div className="flex gap-2">
-          {Object.entries(PRICE_ADJUSTMENTS).map(([label, percentage]) => (
-            <Button
-              key={label}
-              variant={selectedAdjustment === label ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleAdjustmentClick(label, percentage)}
-              className={`flex-1 ${selectedAdjustment === label ? "text-white" : ""}`}
-            >
-              {isLowPrice ? "-" : "+"}{label}
-            </Button>
-          ))}
-        </div>
-      </div>
-    )
   }
 
   const content = (
@@ -277,28 +198,29 @@ export function TradingFormSection({
         </motion.div>
       )}
       <motion.div
-        className={`flex items-center justify-center ${!showFullContent ? 'lg:col-span-2' : ''}`}
-        initial={{ opacity: 0, x: 20 }}
-        whileInView={{ opacity: 1, x: 0 }}
+        className="flex items-center justify-center"
+        initial={{ opacity: 0, scale: 0.8 }}
+        whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
       >
-        <TradingForm 
-          depositAmount={depositAmount}
-          setDepositAmount={setDepositAmount}
-          targetPriceLow={targetPriceLow}
-          setTargetPriceLow={setTargetPriceLow}
-          targetPriceHigh={targetPriceHigh}
-          setTargetPriceHigh={setTargetPriceHigh}
-          slippage={slippage}
-          setSlippage={setSlippage}
-          selectedLowAdjustment={selectedLowAdjustment}
-          setSelectedLowAdjustment={setSelectedLowAdjustment}
-          selectedHighAdjustment={selectedHighAdjustment}
-          setSelectedHighAdjustment={setSelectedHighAdjustment}
-          handleDepositAndOrder={handleDepositAndOrder}
-          isProcessing={isProcessing}
-        />
+        <div className="relative h-[350px] w-[350px] sm:h-[400px] sm:w-[400px] lg:h-[500px] lg:w-[500px]">
+          <motion.div
+            className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-accent to-secondary opacity-20 blur-3xl"
+            animate={{
+              scale: [1, 1.1, 1],
+              opacity: [0.2, 0.3, 0.2],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Number.POSITIVE_INFINITY,
+              repeatType: "reverse",
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <ZetaHopperBotCard />
+          </div>
+        </div>
       </motion.div>
     </div>
   )

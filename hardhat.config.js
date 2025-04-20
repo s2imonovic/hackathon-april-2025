@@ -35,7 +35,7 @@ module.exports = {
       url: 'https://zetachain-evm.blockpi.network/v1/rpc/public',
       accounts: [PK],
       chainId: 7000,
-      gasPrice: 10000000
+      gasPrice: 10000000000
     },
     local: {
       url: 'http://localhost:8545'

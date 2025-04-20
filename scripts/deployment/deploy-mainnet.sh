@@ -40,23 +40,23 @@ echo "✅ Base Mainnet deployment complete"
 echo "CallbackConnector proxy: $CALLBACK_CONNECTOR_ADDRESS"
 echo "CallbackConnector implementation: $CALLBACK_IMPLEMENTATION_ADDRESS"
 
-echo "🚀 Starting deployment to ZetaChain mainnet..."
-echo "First deploying ProxyAdmin to ZetaChain..."
-ZETA_ADMIN_OUTPUT=$(npx hardhat run scripts/deployment/deploy-admin.js --network mainnet 2>&1)
-ZETA_ADMIN_STATUS=$?
+# echo "🚀 Starting deployment to ZetaChain mainnet..."
+# echo "First deploying ProxyAdmin to ZetaChain..."
+# ZETA_ADMIN_OUTPUT=$(npx hardhat run scripts/deployment/deploy-admin.js --network mainnet 2>&1)
+# ZETA_ADMIN_STATUS=$?
+# 
+# if [ $ZETA_ADMIN_STATUS -ne 0 ]; then
+#     echo "❌ ZetaChain ProxyAdmin deployment failed:"
+#     echo "$ZETA_ADMIN_OUTPUT"
+#     exit 1
+# fi
 
-if [ $ZETA_ADMIN_STATUS -ne 0 ]; then
-    echo "❌ ZetaChain ProxyAdmin deployment failed:"
-    echo "$ZETA_ADMIN_OUTPUT"
-    exit 1
-fi
-
-ZETA_ADMIN_ADDRESS=$(extract_address "$ZETA_ADMIN_OUTPUT" "ProxyAdmin:")
-echo "✅ ZetaChain ProxyAdmin deployment complete"
-echo "ZetaChain ProxyAdmin: $ZETA_ADMIN_ADDRESS"
+# ZETA_ADMIN_ADDRESS=$(extract_address "$ZETA_ADMIN_OUTPUT" "ProxyAdmin:")
+# echo "✅ ZetaChain ProxyAdmin deployment complete"
+# echo "ZetaChain ProxyAdmin: $ZETA_ADMIN_ADDRESS"
 
 echo "Now deploying ZetaOrderBook..."
-MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-proxy-orderbook.js --network mainnet 2>&1)
+MAINNET_OUTPUT=$(npx hardhat run scripts/deployment/deploy-proxy-orderbook2.js --network mainnet 2>&1)
 MAINNET_STATUS=$?
 
 if [ $MAINNET_STATUS -ne 0 ]; then
@@ -68,9 +68,11 @@ fi
 # Extract the proxy address using the actual output pattern from deploy-proxy-orderbook.js
 ZETA_ORDERBOOK_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "ZetaOrderBook:")
 ZETA_ORDERBOOK_IMPLEMENTATION_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "Implementation:")
+ZETA_ADMIN_ADDRESS=$(extract_address "$MAINNET_OUTPUT" "ProxyAdmin:")
 echo "✅ ZetaChain mainnet deployment complete"
 echo "ZetaOrderBook proxy: $ZETA_ORDERBOOK_ADDRESS"
 echo "ZetaOrderBook implementation: $ZETA_ORDERBOOK_IMPLEMENTATION_ADDRESS"
+echo "ZetaChain ProxyAdmin: $ZETA_ADMIN_ADDRESS"
 
 echo "🚀 Setting universal contract address on Base Mainnet..."
 SET_UNIVERSAL_OUTPUT=$(npx hardhat run scripts/deployment/set-universal-contract.js --network base 2>&1)
@@ -131,18 +133,6 @@ if [ $VERIFY_STATUS -ne 0 ]; then
 else
     echo "✅ ZetaOrderBook verification complete"
 fi
-
-echo "🚀 Initializing ZetaOrderBook on ZetaChain mainnet..."
-INITIALIZE_OUTPUT=$(npx hardhat run scripts/deployment/initialize-orderbook.js --network mainnet 2>&1)
-INITIALIZE_STATUS=$?
-
-if [ $INITIALIZE_STATUS -ne 0 ]; then
-    echo "❌ ZetaOrderBook initialization failed:"
-    echo "$INITIALIZE_OUTPUT"
-    exit 1
-fi
-
-echo "✅ ZetaOrderBook initialization complete"
 
 echo "✅ Deployment complete!"
 echo "📝 Contract Addresses:"

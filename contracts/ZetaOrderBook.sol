@@ -78,7 +78,7 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
 
     // Order storage
     mapping(uint256 => Order) public orders;
-    uint256 public nextOrderId = 1;
+    uint256 public nextOrderId;
     mapping(address => uint256) public userActiveOrderId; // Track active order per user
 
     // User balances
@@ -145,6 +145,9 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
         callbackChain = _callbackChain;
         callbackAddress = _callbackAddress;
         connectedGasZRC20 = _connectedGasZRC20;
+        
+        // Initialize nextOrderId to 1
+        nextOrderId = 1;
 
         // Approve gateway to spend ETH.BASE for gas fees for loop function
         IZRC20(_connectedGasZRC20).approve(
@@ -554,7 +557,7 @@ contract ZetaOrderBook is UniversalContract, OwnableUpgradeable {
             }
         } else {
             // Simple string handling for the hello message
-            emit HelloEvent("Hello on ZetaChain", "Received message");
+            emit HelloEvent("Unexpected callback on ZetaChain", "Only checkAndExecuteOrder is supported");
         }
     }
 

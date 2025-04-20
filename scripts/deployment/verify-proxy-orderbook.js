@@ -15,26 +15,40 @@ async function main() {
     console.log("📝 Loading saved addresses...");
     const savedProxies = getSavedContractProxies();
     const zetaOrderBookAddress = savedProxies[network]?.ZetaOrderBook;
+    const TransparentUpgradeableProxyAddress = savedProxies[network]?.ZetaOrderBook;
     
     if (!zetaOrderBookAddress) {
         throw new Error(`ZetaOrderBook address not found for ${network}`);
     }
     console.log(`✅ Found ZetaOrderBook proxy at: ${zetaOrderBookAddress}`);
+    // if (!TransparentUpgradeableProxyAddress) {
+    //     throw new Error(`TransparentUpgradeableProxy address not found for ${network}`);
+    // }
+    // console.log(`✅ Found TransparentUpgradeableProxy at: ${TransparentUpgradeableProxyAddress}`);
 
     // Get the saved constructor arguments for this network
     const savedConstructorArgs = getSavedConstructorArguments();
     let proxyConstructorArgs = savedConstructorArgs[network]?.ZetaOrderBookProxy;
+    // let transparentUpgradeableProxyConstructorArgs = savedConstructorArgs[network]?.ZetaOrderBookProxy;
 
     console.log(`✅ Using saved constructor arguments for proxy contract: ${JSON.stringify(proxyConstructorArgs)}`);
-    
+    // console.log(`✅ Using saved constructor arguments for transparent upgradeable proxy contract: ${JSON.stringify(transparentUpgradeableProxyConstructorArgs)}`);
     // Verify contract
-    console.log("\n🔍 Starting contract verification...");
+    console.log("\n🔍 Starting Proxy contract verification...");
     console.log(`🔍 VERIFICATION DETAILS:`);
     console.log(`🔍 Contract Address: ${zetaOrderBookAddress}`);
     console.log(`🔍 Constructor Arguments: ${JSON.stringify(proxyConstructorArgs)}`);
     console.log(`🔍 Contract Name: ZetaOrderBook Proxy`);
     
     await verifyWithRetries(zetaOrderBookAddress, proxyConstructorArgs, "ZetaOrderBook Proxy");
+
+    // console.log("\n🔍 Starting TransparentUpgradeableProxy contract verification...");
+    // console.log(`🔍 VERIFICATION DETAILS:`);
+    // console.log(`🔍 Contract Address: ${TransparentUpgradeableProxyAddress}`);
+    // console.log(`🔍 Constructor Arguments: ${JSON.stringify(transparentUpgradeableProxyConstructorArgs)}`);
+    // console.log(`🔍 Contract Name: TransparentUpgradeableProxy`);
+
+    // await verifyWithRetries(TransparentUpgradeableProxyAddress, transparentUpgradeableProxyConstructorArgs, "TransparentUpgradeableProxy");
     
     // Get the implementation address
     const savedImplementations = getSavedImplementationAddresses();

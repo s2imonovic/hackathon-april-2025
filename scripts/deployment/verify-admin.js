@@ -1,7 +1,6 @@
 const hre = require("hardhat");
 const { 
     getSavedContractProxies, 
-    getSavedImplementationAddresses,
     getSavedConstructorArguments
 } = require('../helpers/utils');
 

@@ -1,71 +1,8 @@
 const hre = require("hardhat");
+const { getSavedImplementationAddress } = require('../helpers/utils');
 
-// Delete this? const { getSavedContractProxies, saveContractAddress, getSavedContractAddresses, saveContractAbi, saveContractProxies, getSavedContractProxies, saveImplementationAddress, saveConstructorArguments } = require('../helpers/utils');
-const { getSavedContractProxy, getSavedContractProxies, saveContractProxies, saveImplementationAddress, saveConstructorArguments } = require('../helpers/utils');
-// Delete this? const { web3, ethers, toWeiDenomination, hexify, upgrades, encodeData} = require('../helpers/setup');
-const { calculateGasPrice } = require('../helpers/ethereum');
-const delay = ms => new Promise(res => setTimeout(res, ms));
-const delayLength = 6000;
-
-async function main() {
-    await hre.run('compile');
-
-    const finalGasPrice = await calculateGasPrice();
-    const network = hre.network.name;
-
-    // Get the owner address from the saved addresses
-    const ownerAddress = getSavedContractProxy(network, 'ProxyAdmin');
-    if (!ownerAddress) {
-        throw new Error(`ProxyAdmin address not found for ${network}`);
-    }
-    console.log(`✅ Found ProxyAdmin at: ${ownerAddress}`);
-
-    const baseNetwork = network === 'testnet' ? 'base_sepolia' : 'base';
-    const callbackConnectorAddress = getSavedContractProxies()[baseNetwork]?.CallbackConnector;
-    if (!callbackConnectorAddress) {
-        throw new Error(`CallbackConnector proxy address not found for ${baseNetwork}`);
-    }
-    console.log(`✅ Found CallbackConnector proxy at: ${callbackConnectorAddress}`);
-
-    // Deploy the implementation contract
-    const ZetaOrderBook = await hre.ethers.getContractFactory("ZetaOrderBook");
-    const zetaOrderBook = await ZetaOrderBook.deploy({gasPrice: finalGasPrice});
-    console.log("ZetaOrderBook implementation deployed to: ", zetaOrderBook.target);
-    
-    // Save the implementation address
-    saveImplementationAddress(network, 'ZetaOrderBook', zetaOrderBook.target);
-    console.log("Implementation: " + zetaOrderBook.target);
-    
-    // Save empty constructor arguments for the implementation contract
-    // The ZetaOrderBook has an empty constructor
-    saveConstructorArguments(network, 'ZetaOrderBook', []);
-    console.log("Implementation constructor arguments saved: []");
-
-    await delay(delayLength);
-
-    // Initialize the contract with empty data (will be set later)
-    const data = "0x";
-    
-    // Save proxy constructor arguments separately
-    const proxyConstructorArgs = [zetaOrderBook.target, ownerAddress, data];
-    saveConstructorArguments(network, 'ZetaOrderBookProxy', proxyConstructorArgs);
-    console.log("Proxy constructor arguments saved:", JSON.stringify(proxyConstructorArgs));
-
-    // Deploy the proxy
-    const proxyFactory = await hre.ethers.getContractFactory("@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy");
-    const proxy = await proxyFactory.deploy(
-        zetaOrderBook.target,
-        ownerAddress,
-        data,
-        {gasPrice: finalGasPrice}
-    );
-    console.log("ZetaOrderBook: " + proxy.target);
-    saveContractProxies(network, 'ZetaOrderBook', proxy.target);
-
-    console.log("Verifying ZetaOrderBook Proxy...");
-    // verify proxy.target as TransparentUpgradeableProxy
-    await verifyWithRetries(proxy.target, proxyConstructorArgs, "ZetaOrderBook Proxy");
-}
+// Helper function to sleep
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper function to get contract URL
 function getContractUrl(network, address) {
@@ -85,7 +22,7 @@ async function verifyWithRetries(address, constructorArguments, contractName, ma
     const contractUrl = getContractUrl(network, address);
 
     // Skip verification if no API key is set
-    if (!process.env.BLOCKSCOUT_API_KEY) {
+    if (!process.env.BASESCAN_API_KEY && !process.env.BLOCKSCOUT_API_KEY) {
         console.log("⚠️  No API key found. Skipping verification.");
         console.log(`View contract at: ${contractUrl}`);
         return;
@@ -148,14 +85,34 @@ async function verifyWithRetries(address, constructorArguments, contractName, ma
     throw new Error(`Failed to verify contract after ${maxRetries} attempts`);
 }
 
-// Helper function to sleep
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+async function main() {
+    const network = hre.network.name;
+    const implementationAddress = getSavedImplementationAddress(network, 'ZetaOrderBook');
+    
+    if (!implementationAddress) {
+        console.error("No implementation address found for ZetaOrderBook");
+        process.exit(1);
+    }
+    
+    console.log(`Verifying ZetaOrderBook implementation at ${implementationAddress}...`);
+    
+    try {
+        // ZetaOrderBook has no constructor arguments, so use an empty array
+        const constructorArgs = [];
+        
+        // Verify the contract with retries
+        await verifyWithRetries(implementationAddress, constructorArgs, "ZetaOrderBook");
+        
+        console.log("Verification successful!");
+    } catch (error) {
+        console.error("Verification failed:", error);
+        throw error;
+    }
+}
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main()
     .then(() => process.exit(0))
     .catch(error => {
         console.error(error);
         process.exit(1);
-    });
+    }); 

@@ -22,8 +22,8 @@ async function main() {
         throw new Error(`ZetaOrderBook implementation not deployed on ${network} yet. Deploy it first.`);
     }
 
-    console.log("Initializing ZetaOrderBook Proxy...");
-    console.log("ZetaOrderBook Proxy address:", zetaOrderBookAddress);
+    console.log("Initializing ZetaOrderBook Implementation...");
+    console.log("ZetaOrderBook Implementation address:", zetaOrderBookImplementationAddress);
 
     // Network-specific addresses
     const gatewayAddress = network === 'testnet'
@@ -51,7 +51,7 @@ async function main() {
 
     // Get the ZetaOrderBook contract instance
     const ZetaOrderBook = await hre.ethers.getContractFactory("ZetaOrderBook");
-    const zetaOrderBook = ZetaOrderBook.attach(zetaOrderBookAddress);
+    const zetaOrderBook = ZetaOrderBook.attach(zetaOrderBookImplementationAddress);
 
     // Debug: Log the contract interface
     console.log("\nDebug - Contract Interface:");
@@ -61,7 +61,7 @@ async function main() {
     console.log("\nDebug - Preparing initialization transaction:");
     const signer = await hre.ethers.provider.getSigner();
     console.log("From:", await signer.getAddress());
-    console.log("To:", zetaOrderBookAddress);
+    console.log("To:", zetaOrderBookImplementationAddress);
     console.log("Data:", zetaOrderBook.interface.encodeFunctionData("initialize", [
         gatewayAddress,
         pythOracleAddress,
@@ -105,64 +105,16 @@ async function main() {
     console.log("Status:", receipt.status);
     console.log("Logs:", JSON.stringify(receipt.logs, null, 2));
 
-    console.log("\nZetaOrderBook Proxy initialized successfully!");
-
-    console.log("Initializing ZetaOrderBook Implementation...");
-    console.log("ZetaOrderBook Implementation address:", zetaOrderBookImplementationAddress);
-    const zetaOrderBookImplementation = ZetaOrderBook.attach(zetaOrderBookImplementationAddress);
-
-    // Debug: Log the contract interface
-    console.log("\nDebug - Contract Interface:");
-    console.log("initialize function:", zetaOrderBookImplementation.interface.getFunction("initialize"));
-
-    // Initialize the contract
-    console.log("\nDebug - Preparing initialization transaction:");
-    console.log("From:", await signer.getAddress());
-    console.log("To:", zetaOrderBookImplementationAddress);
-    console.log("Data:", zetaOrderBookImplementation.interface.encodeFunctionData("initialize", [
-        gatewayAddress,
-        pythOracleAddress,
-        swapGateway,
-        tradePairAddress,
-        zetaPriceId,
-        baseGatewayAddress,
-        callbackConnectorAddress,
-        connectedGasZRC20
-    ]));
-
-    const tx_implementation = await zetaOrderBookImplementation.initialize(
-        gatewayAddress,
-        pythOracleAddress,
-        swapGateway,
-        tradePairAddress,
-        zetaPriceId,
-        baseGatewayAddress,
-        callbackConnectorAddress,
-        connectedGasZRC20,
-        { gasPrice: finalGasPrice }
-    );
-
-    console.log("\nDebug - Transaction object:");
-    console.log("Hash:", tx_implementation.hash);
-    console.log("From:", tx_implementation.from);
-    console.log("To:", tx_implementation.to);
-    console.log("Data:", tx_implementation.data);
-    console.log("Value:", tx_implementation.value?.toString() || "0");
-    console.log("Nonce:", tx_implementation.nonce);
-    console.log("GasLimit:", tx_implementation.gasLimit?.toString() || "0");
-    console.log("GasPrice:", tx_implementation.gasPrice?.toString() || "0");
-    console.log("MaxFeePerGas:", tx_implementation.maxFeePerGas?.toString() || "0");
-    console.log("MaxPriorityFeePerGas:", tx_implementation.maxPriorityFeePerGas?.toString() || "0");
-
-    console.log("\nDebug - Waiting for transaction receipt...");
-    const receipt_implementation = await tx_implementation.wait();
-    console.log("\nDebug - Transaction receipt:");
-    console.log("BlockNumber:", receipt_implementation.blockNumber);
-    console.log("GasUsed:", receipt_implementation.gasUsed?.toString() || "0");
-    console.log("Status:", receipt_implementation.status);
-    console.log("Logs:", JSON.stringify(receipt_implementation.logs, null, 2));
-
     console.log("\nZetaOrderBook Implementation initialized successfully!");
+
+    // renounce ownership
+    const renounceTx = await zetaOrderBook.renounceOwnership({ gasPrice: finalGasPrice });
+    console.log("\nDebug - Renounce ownership transaction:");
+    console.log("Hash:", renounceTx.hash);
+    console.log("From:", renounceTx.from);
+    console.log("To:", renounceTx.to);
+    console.log("Data:", renounceTx.data);
+
 }
 
 main()

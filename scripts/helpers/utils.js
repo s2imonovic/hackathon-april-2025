@@ -28,6 +28,11 @@ function getSavedContractProxies() {
     return JSON.parse(json)
 }
 
+function getSavedContractProxy(network, contract) {
+    const addrs = getSavedContractProxies()
+    return addrs[network] && addrs[network][contract] ? addrs[network][contract] : null
+}
+
 function saveContractProxies(network, contract, address) {
     const addrs = getSavedContractProxies()
     addrs[network] = addrs[network] || {}
@@ -97,6 +102,11 @@ function getSavedImplementationAddresses() {
     return JSON.parse(json)
 }
 
+function getSavedImplementationAddress(network, contract) {
+    const addrs = getSavedImplementationAddresses()
+    return addrs[network] && addrs[network][contract] ? addrs[network][contract] : null
+}
+
 function saveImplementationAddress(network, contract, address) {
     const addrs = getSavedImplementationAddresses()
     addrs[network] = addrs[network] || {}
@@ -127,12 +137,14 @@ module.exports = {
     getDeploymentBlockchain,
     saveDeploymentBlockchain,
     getSavedContractProxies,
+    getSavedContractProxy,
     saveContractProxies,
     getSavedContractABI,
     saveContractAbi,
     saveContractAbiTest,
     getSavedContractProxyAbis,
     getSavedImplementationAddresses,
+    getSavedImplementationAddress,
     saveImplementationAddress,
     getSavedConstructorArguments,
     saveConstructorArguments

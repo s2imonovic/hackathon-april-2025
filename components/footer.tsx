@@ -54,7 +54,7 @@ export function Footer() {
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-base-content">ZetaHopper</h3>
             <p className="text-sm text-base-content/70">
-              Automated on-chain trading bot for Zetachain. Maximize your returns with advanced algorithms.
+              We harnessed the power of ZetaChain's crosschain architecture to create a truly autonomous range trading system.
             </p>
             {/* <div className="flex space-x-4">
               <Link href="#" className="text-base-content/70 hover:text-primary">

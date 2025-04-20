@@ -3,7 +3,6 @@ import { FeaturesSection } from "@/components/features-section"
 import { HowItWorksSection } from "@/components/how-it-works-section"
 import { TradingFormSection } from "@/components/trading-form-section"
 import { StatsSection } from "@/components/stats-section"
-import { FaqSection } from "@/components/faq-section"
 import { CtaSection } from "@/components/cta-section"
 import { Footer } from "@/components/footer"
 import { Header } from "@/components/header"
@@ -18,7 +17,6 @@ export default function Home() {
         <HowItWorksSection />
         <TradingFormSection />
         {/* <StatsSection /> */}
-        <FaqSection />
         <CtaSection />
       </main>
       <Footer />

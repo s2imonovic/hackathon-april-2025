@@ -55,7 +55,6 @@ export function Header() {
   const navItems = [
     { name: "Home", href: "home" },
     { name: "How It Works", href: "how-it-works" },
-    { name: "FAQ", href: "faq" },
   ]
 
   const isActive = (href: string) => {

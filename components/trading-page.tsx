@@ -13,8 +13,9 @@ import { useAccount, useWriteContract, useReadContract } from "wagmi"
 import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
 import contractProxies from "@/deployments/addresses/contract-proxies.json"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { TradingFormSection } from "@/components/trading-form-section"
 import { TradingViewWidget } from "./trading-view-widget"
+import { TradingForm } from "@/components/trading-form"
+import { ZetaHopperBotCard } from "@/components/zeta-hopper-bot-card"
 
 // Define types for the contract proxies
 type NetworkType = 'testnet' | 'mainnet' | 'base_sepolia' | 'base';
@@ -64,6 +65,7 @@ export const TradingPage: React.FC = () => {
   const [orderTargetPriceLow, setOrderTargetPriceLow] = useState("")
   const [orderTargetPriceHigh, setOrderTargetPriceHigh] = useState("")
   const [orderSlippage, setOrderSlippage] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // New states for withdrawal actions (still kept if needed for UI hints)
   const [withdrawUsdcAmount, setWithdrawUsdcAmount] = useState("")
@@ -582,9 +584,6 @@ useEffect(() => {
                       height="480" 
                       width="100%" 
                       autosize={true}
-                      priceLow={currentOrderData && currentOrderData[7] === true ? Number(currentOrderData[3]) / 1e6 : undefined}
-                      priceHigh={currentOrderData && currentOrderData[7] === true ? Number(currentOrderData[4]) / 1e6 : undefined}
-                      orderType={currentOrderData && currentOrderData[7] === true ? (Number(currentOrderData[6]) === 0 ? 'buy' : 'sell') : undefined}
                     />
                   </div>
                 </CardContent>
@@ -842,8 +841,27 @@ useEffect(() => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              {/* Start Trading Now Panel */}
-              <TradingFormSection showFullContent={false} useContainer={false} />
+              {/* Trading Form */}
+              <Card className="bg-base-200 border-base-300">
+                <CardContent className="p-6">
+                  <TradingForm 
+                    depositAmount={depositUsdcAmount}
+                    setDepositAmount={setDepositUsdcAmount}
+                    targetPriceLow={orderTargetPriceLow}
+                    setTargetPriceLow={setOrderTargetPriceLow}
+                    targetPriceHigh={orderTargetPriceHigh}
+                    setTargetPriceHigh={setOrderTargetPriceHigh}
+                    slippage={orderSlippage}
+                    setSlippage={setOrderSlippage}
+                    selectedLowAdjustment="1%"
+                    setSelectedLowAdjustment={() => {}}
+                    selectedHighAdjustment="5%"
+                    setSelectedHighAdjustment={() => {}}
+                    handleDepositAndOrder={handleDepositUsdc}
+                    isProcessing={isProcessing}
+                  />
+                </CardContent>
+              </Card>
 
               {/* User Balances */}
               {activeTab !== "withdraw" && (

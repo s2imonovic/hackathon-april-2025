@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Wallet, Info, ArrowRight } from "lucide-react"
+import { Wallet, Info } from "lucide-react"
 import { useAccount, useWriteContract, useReadContract } from "wagmi"
 import contractAbis from "@/deployments/abis/contract-abis-mainnet.json"
 import contractProxies from "@/deployments/addresses/contract-proxies.json"
@@ -32,54 +32,29 @@ const zetaOrderBookAddress = typedProxies[network]?.ZetaOrderBook as `0x${string
 // Use the ABI from the mainnet contract (should be the same for both networks)
 const zetaOrderBookABI = contractAbis.mainnet.ZetaOrderBook.abi
 
-// USDC ABI - minimal ERC20 interface
-const usdcABI = [
+// Define the specific function ABI for depositZetaAndCreateSellOrder
+const depositZetaAndCreateSellOrderABI = [
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "spender",
-        "type": "address"
-      }
-    ],
-    "name": "allowance",
-    "outputs": [
-      {
         "internalType": "uint256",
-        "name": "",
+        "name": "targetPriceLow",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "spender",
-        "type": "address"
       },
       {
         "internalType": "uint256",
-        "name": "amount",
+        "name": "targetPriceHigh",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "slippageBps",
         "type": "uint256"
       }
     ],
-    "name": "approve",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "nonpayable",
+    "name": "depositZetaAndCreateSellOrder",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   }
 ] as const;
@@ -88,7 +63,6 @@ const usdcABI = [
 const DEPOSITS_ENABLED = process.env.NEXT_PUBLIC_DEPOSITS_ENABLED === "true"
 
 export function TradingFormSection() {
-  const [depositType, setDepositType] = useState<"zeta" | "usdc">("zeta")
   const [depositAmount, setDepositAmount] = useState("")
   const [targetPriceLow, setTargetPriceLow] = useState("")
   const [targetPriceHigh, setTargetPriceHigh] = useState("")
@@ -97,43 +71,13 @@ export function TradingFormSection() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedLowAdjustment, setSelectedLowAdjustment] = useState("1%")
   const [selectedHighAdjustment, setSelectedHighAdjustment] = useState("5%")
-  const [approvalStatus, setApprovalStatus] = useState<"none" | "pending" | "approved" | "failed">("none")
-  const [approvalError, setApprovalError] = useState<string | null>(null)
-  const [usdcTokenAddress, setUsdcTokenAddress] = useState<`0x${string}` | null>(null)
 
   // Wallet connection details
   const { address, chainId } = useAccount()
 
   // Write contract hooks
-  const { writeContract: writeDepositZetaAndCreateSellOrder } = useWriteContract()
-  const { writeContract: writeDepositUsdcAndCreateBuyOrder } = useWriteContract()
-  const { writeContract: writeApproveUsdc } = useWriteContract()
+  const { writeContractAsync: writeDepositZetaAndCreateSellOrderAsync } = useWriteContract()
   
-  // Read contract hooks for checking USDC allowance and getting USDC token address
-  const { data: usdcTokenAddressFromContract } = useReadContract({
-    address: zetaOrderBookAddress,
-    abi: zetaOrderBookABI,
-    functionName: "usdcToken",
-  })
-
-  // Set the USDC token address from the contract
-  useEffect(() => {
-    if (usdcTokenAddressFromContract) {
-      setUsdcTokenAddress(usdcTokenAddressFromContract as `0x${string}`)
-    }
-  }, [usdcTokenAddressFromContract])
-
-  // Read contract hooks for checking USDC allowance
-  const { data: usdcAllowance } = useReadContract({
-    address: usdcTokenAddress || '0x0000000000000000000000000000000000000000',
-    abi: usdcABI,
-    functionName: "allowance",
-    args: [address as `0x${string}`, zetaOrderBookAddress],
-    query: {
-      enabled: !!address && !!usdcTokenAddress && depositType === "usdc" && approvalStatus === "none",
-    }
-  })
-
   // Helper functions for price conversion
   const convertDollarsToContractValue = (dollarAmount: string): number => {
     const num = parseFloat(dollarAmount)
@@ -162,27 +106,7 @@ export function TradingFormSection() {
     setTargetPriceHigh(adjustPrice(basePrice, 0.05))  // +5%
   }, [])
 
-  // Check if we need approval
-  useEffect(() => {
-    if (depositType === "usdc" && address && usdcAllowance !== undefined && usdcTokenAddress) {
-      const depositAmountValue = depositAmount ? parseInt(depositAmount) : 0
-      if (depositAmountValue > 0 && usdcAllowance < BigInt(depositAmountValue)) {
-        setApprovalStatus("none")
-      } else {
-        setApprovalStatus("approved")
-      }
-    }
-  }, [depositType, address, usdcAllowance, depositAmount, usdcTokenAddress])
-
-  // Reset approval status when deposit type or amount changes
-  useEffect(() => {
-    if (depositType === "zeta") {
-      setApprovalStatus("none")
-      setApprovalError(null)
-    }
-  }, [depositType])
-
-  // Handle deposit and order creation based on token type
+  // Handle deposit and order creation
   const handleDepositAndOrder = () => {
     if (!DEPOSITS_ENABLED) {
       alert("Deposits are coming soon!")
@@ -198,140 +122,31 @@ export function TradingFormSection() {
   const handleConfirmDepositAndOrder = async () => {
     if (!address) return
     setIsProcessing(true)
-    setApprovalError(null)
+    setShowDisclaimer(false)
 
     try {
-      if (depositType === "zeta") {
-        // Use the combined function to deposit ZETA and create sell order in a single transaction
-        writeDepositZetaAndCreateSellOrder({
-          chainId,
-          address: zetaOrderBookAddress,
-          abi: zetaOrderBookABI,
-          functionName: "depositZetaAndCreateSellOrder",
-          value: depositAmount ? BigInt(Math.floor(parseFloat(depositAmount) * 1e18)) : BigInt(0),
-          args: [
-            convertDollarsToContractValue(targetPriceLow),
-            convertDollarsToContractValue(targetPriceHigh),
-            slippage ? parseInt(slippage) : 100,
-          ],
-        })
-      } else {
-        // For USDC, we need to handle the two-step process
-        const depositAmountValue = depositAmount ? parseInt(depositAmount) : 0
-        
-        if (!usdcTokenAddress) {
-          setApprovalError("USDC token address not available. Please try again later.")
-          setIsProcessing(false)
-          setShowDisclaimer(false)
-          return
-        }
-        
-        // Check if we need approval
-        if (approvalStatus !== "approved") {
-          setApprovalStatus("pending")
-          
-          // Request USDC approval
-          writeApproveUsdc({
-            chainId,
-            address: usdcTokenAddress,
-            abi: usdcABI,
-            functionName: "approve",
-            args: [zetaOrderBookAddress, BigInt(depositAmountValue)],
-          })
-          
-          // We'll handle the success/error in a separate useEffect
-        } else {
-          // Approval already granted, proceed with deposit and order creation
-          executeUsdcDepositAndOrder(depositAmountValue)
-        }
-      }
+      // Use the combined function to deposit ZETA and create sell order in a single transaction
+      await writeDepositZetaAndCreateSellOrderAsync({
+        chainId,
+        address: zetaOrderBookAddress,
+        abi: depositZetaAndCreateSellOrderABI,
+        functionName: "depositZetaAndCreateSellOrder",
+        value: depositAmount ? BigInt(Math.floor(parseFloat(depositAmount) * 1e18)) : BigInt(0),
+        args: [
+          BigInt(convertDollarsToContractValue(targetPriceLow)),
+          BigInt(convertDollarsToContractValue(targetPriceHigh)),
+          BigInt(slippage ? parseInt(slippage) : 100),
+        ],
+      })
+      // Transaction submitted successfully
+      console.log("ZETA deposit transaction submitted")
     } catch (error) {
       console.error("Error processing transaction:", error)
       alert("An error occurred while processing your transaction. Please try again.")
+    } finally {
       setIsProcessing(false)
-      setShowDisclaimer(false)
     }
   }
-
-  // Handle USDC approval success/failure
-  useEffect(() => {
-    if (approvalStatus === "pending") {
-      const handleApprovalSuccess = () => {
-        setApprovalStatus("approved")
-        // Now that approval is granted, proceed with deposit and order creation
-        const depositAmountValue = depositAmount ? parseInt(depositAmount) : 0
-        executeUsdcDepositAndOrder(depositAmountValue)
-      }
-      
-      const handleApprovalError = (error: Error) => {
-        console.error("USDC approval failed:", error)
-        setApprovalStatus("failed")
-        setApprovalError("Failed to approve USDC spending. Please try again.")
-        setIsProcessing(false)
-        setShowDisclaimer(false)
-      }
-      
-      // Set up event listeners for the approval transaction
-      // This is a simplified approach - in a real app, you'd use a more robust event handling system
-      const timeoutId = setTimeout(() => {
-        // Simulate checking if approval was successful
-        // In a real app, you'd check the transaction status
-        if (approvalStatus === "pending") {
-          handleApprovalSuccess()
-        }
-      }, 5000)
-      
-      return () => clearTimeout(timeoutId)
-    }
-  }, [approvalStatus, depositAmount])
-
-  // Helper function to execute USDC deposit and order creation
-  const executeUsdcDepositAndOrder = (amount: number) => {
-    writeDepositUsdcAndCreateBuyOrder({
-      chainId,
-      address: zetaOrderBookAddress,
-      abi: zetaOrderBookABI,
-      functionName: "depositUsdcAndCreateBuyOrder",
-      args: [
-        amount,
-        convertDollarsToContractValue(targetPriceLow),
-        convertDollarsToContractValue(targetPriceHigh),
-        slippage ? parseInt(slippage) : 100,
-      ],
-    })
-    
-    // We'll handle success/failure in a separate useEffect
-  }
-
-  // Handle deposit and order creation success/failure
-  useEffect(() => {
-    if (isProcessing) {
-      const handleDepositSuccess = () => {
-        setIsProcessing(false)
-        setShowDisclaimer(false)
-      }
-      
-      const handleDepositError = (error: Error) => {
-        console.error("USDC deposit and order creation failed:", error)
-        setApprovalStatus("none")
-        setApprovalError("Failed to deposit USDC and create order. Please try again.")
-        setIsProcessing(false)
-        setShowDisclaimer(false)
-      }
-      
-      // Set up event listeners for the deposit transaction
-      // This is a simplified approach - in a real app, you'd use a more robust event handling system
-      const timeoutId = setTimeout(() => {
-        // Simulate checking if deposit was successful
-        // In a real app, you'd check the transaction status
-        if (isProcessing) {
-          handleDepositSuccess()
-        }
-      }, 5000)
-      
-      return () => clearTimeout(timeoutId)
-    }
-  }, [isProcessing])
 
   // Create a reusable price input component with adjustment buttons
   const PriceInput = ({ 
@@ -441,41 +256,24 @@ export function TradingFormSection() {
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="deposit-type" className="text-base-content">
-                    Select Deposit Token
+                  <Label htmlFor="deposit-amount" className="text-base-content">
+                    Deposit Amount (ZETA)
                   </Label>
                   <div className="flex gap-2">
-                    <Select
-                      value={depositType}
-                      onValueChange={(val) => setDepositType(val as "zeta" | "usdc")}
-                    >
-                      <SelectTrigger className="w-1/2 bg-base-200 border-base-300 text-base-content">
-                        <SelectValue placeholder="Select token" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-base-200 border-base-300 text-base-content">
-                        <SelectItem value="zeta">ZETA</SelectItem>
-                        <SelectItem value="usdc">USDC</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="relative w-1/2">
+                      <Input
+                        id="deposit-amount"
+                        placeholder="Enter amount"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        className="w-full bg-base-200 border-base-300 text-base-content pr-16"
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-base-content/70">
+                        ZETA
+                      </div>
+                    </div>
                     <div className="w-1/2 flex items-center justify-center bg-base-200 border border-base-300 rounded-md px-3 text-base-content">
                       ZETA/USD: $0.25
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="deposit-amount" className="text-base-content">
-                    Deposit Amount
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="deposit-amount"
-                      placeholder="Enter amount"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      className="w-full bg-base-200 border-base-300 text-base-content pr-16"
-                    />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-base-content/70">
-                      {depositType === "zeta" ? "ZETA" : "USDC"}
                     </div>
                   </div>
                 </div>
@@ -511,45 +309,23 @@ export function TradingFormSection() {
                     </SelectContent>
                   </Select>
                 </div>
-                {depositType === "usdc" && !usdcTokenAddress && (
-                  <div className="rounded-lg bg-warning/10 p-3 text-sm text-warning flex items-start">
-                    <Info className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                    <span>Loading USDC token information...</span>
-                  </div>
-                )}
-                {depositType === "usdc" && approvalStatus === "failed" && (
-                  <div className="rounded-lg bg-error/10 p-3 text-sm text-error flex items-start">
-                    <Info className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                    <span>{approvalError}</span>
-                  </div>
-                )}
-                {depositType === "usdc" && approvalStatus === "pending" && (
-                  <div className="rounded-lg bg-warning/10 p-3 text-sm text-warning flex items-start">
-                    <Info className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                    <span>Please approve USDC spending in your wallet...</span>
-                  </div>
-                )}
                 <div className="rounded-lg bg-info/10 p-3 text-sm text-info flex items-start">
                   <Info className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
                   <span>
-                    {depositType === "zeta" 
-                      ? "You will deposit ZETA and create a sell order at your specified price range."
-                      : "You will first approve the contract to spend your USDC, then deposit USDC and create a buy order at your specified price range."}
+                    You will deposit ZETA and create a sell order at your specified price range.
                   </span>
                 </div>
                 <Button
                   className="w-full bg-primary text-primary-content hover:bg-primary/90"
                   onClick={handleDepositAndOrder}
-                  disabled={isProcessing || (depositType === "usdc" && approvalStatus === "pending") || (depositType === "usdc" && !usdcTokenAddress)}
+                  disabled={isProcessing}
                 >
                   {isProcessing ? (
                     "Processing..."
-                  ) : depositType === "usdc" && approvalStatus === "pending" ? (
-                    "Approving USDC..."
                   ) : (
                     <>
                       <Wallet className="mr-2 h-4 w-4" /> 
-                      {depositType === "zeta" ? "Deposit ZETA & Create Sell Order" : "Deposit USDC & Create Buy Order"}
+                      Deposit ZETA & Create Sell Order
                     </>
                   )}
                 </Button>

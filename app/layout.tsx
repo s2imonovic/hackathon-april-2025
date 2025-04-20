@@ -5,6 +5,11 @@ import Providers from './providers';
 export const metadata: Metadata = {
   title: 'ZetaHopper',
   description: 'Onchain trading bot for Zetachain',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
   openGraph: {
     title: 'ZetaHopper',
     description: 'Onchain trading bot for Zetachain',

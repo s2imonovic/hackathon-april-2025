@@ -5,7 +5,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "hardhat run scripts/deployment/deploy.js --network",
+    "upgrade": "hardhat run scripts/deployment/upgrade.js --network"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.9.1",
